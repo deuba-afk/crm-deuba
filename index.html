@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#8a3a5e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Deuba CRM" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="description" content="CRM institucional estratégico — Gerência de Relações Institucionais do Araújo Jorge. Captação não é pedido. É construção de rede." />
+  <title>Gestão de Relacionamento — Deuba Assunção</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- TELA DE LOGIN -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-emblem">DA</div>
+        <h1>Gestão de Relacionamento</h1>
+        <p class="login-sub">Deuba Assunção</p>
+        <p class="login-org">Gerência de Relações Institucionais<br/>Araújo Jorge — Hospital de Câncer</p>
+      </div>
+      <div class="login-quote">"Captação não é pedido. É construção de rede."</div>
+      <form id="login-form" class="login-form" autocomplete="off">
+        <p id="login-note" class="login-note"></p>
+        <label id="login-email-wrap" style="display:none">E-mail
+          <input type="email" id="login-email" placeholder="seu e-mail" autocomplete="email" />
+        </label>
+        <label id="login-user-wrap">Usuário
+          <input type="text" id="login-user" placeholder="seu nome" autocomplete="username" />
+        </label>
+        <label>Senha
+          <input type="password" id="login-pass" placeholder="sua senha" autocomplete="current-password" />
+        </label>
+        <label id="login-confirm-wrap" style="display:none">Confirmar senha
+          <input type="password" id="login-pass2" placeholder="repita a senha" autocomplete="new-password" />
+        </label>
+        <p id="login-error" style="display:none;color:var(--danger);font-size:12.5px;text-align:center;margin-bottom:10px">Senha incorreta.</p>
+        <button type="submit" id="login-btn" class="btn btn-primary btn-block">Entrar</button>
+        <p id="login-toggle" style="display:none;text-align:center;margin-top:12px;font-size:12.5px">
+          <a href="#" id="login-toggle-link" style="color:var(--green-700);font-weight:600">Primeiro acesso? Criar conta</a>
+        </p>
+        <p class="login-hint">🔒 Dados criptografados ponta-a-ponta · Acesso restrito</p>
+      </form>
+    </div>
+    <footer class="login-footer">Relacionamento é patrimônio institucional.</footer>
+  </div>
+
+  <!-- APLICAÇÃO -->
+  <div id="app" class="app hidden">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="emblem">DA</div>
+        <div class="brand-text">
+          <strong>Deuba Assunção</strong>
+          <span>Relações Institucionais</span>
+        </div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="sidebar-foot">
+        <div class="philosophy">
+          <span class="philosophy-mark">"</span>
+          Captação não é pedido.<br/>É construção de rede.
+        </div>
+      </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Main -->
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menu-btn" aria-label="Menu">☰</button>
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-actions">
+          <div class="search-box">
+            <span class="search-ico">⌕</span>
+            <input type="text" id="global-search" placeholder="Buscar relacionamento, demanda, projeto…" />
+          </div>
+          <span id="sync-pill" class="sync-pill" title="Status da nuvem"></span>
+          <button class="icon-btn" id="quick-add" title="Ação rápida">+</button>
+          <div class="user-chip">
+            <div class="avatar-sm">DA</div>
+            <span class="user-name">Deuba</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content" id="view"></main>
+
+      <footer class="app-footer">
+        <p class="af-lgpd">
+          Sistema de gestão de relacionamento institucional destinado à análise estratégica, à articulação
+          e à obtenção de resultados. Os dados são tratados de forma criptografada, com acesso restrito e
+          finalidade exclusivamente institucional, em conformidade com os princípios da
+          <strong>Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)</strong>.
+        </p>
+        <p class="af-copy">© DAS — Deuba Assunção · Criado em Junho de 2026 · <em>Relacionamento é patrimônio institucional.</em></p>
+      </footer>
+    </div>
+
+    <!-- Navegação inferior (mobile) -->
+    <nav class="mobile-tabbar" id="mobile-tabbar"></nav>
+  </div>
+
+  <!-- Modal genérico -->
+  <div class="modal-backdrop hidden" id="modal-backdrop">
+    <div class="modal" id="modal">
+      <div class="modal-head">
+        <h3 id="modal-title">Título</h3>
+        <button class="icon-btn" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-wrap" id="toast-wrap"></div>
+
+  <script src="js/store.js"></script>
+  <script src="js/cloud-config.js"></script>
+  <script src="js/cloud.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/speech.js"></script>
+  <script src="js/modules/dashboard.js"></script>
+  <script src="js/modules/relacionamentos.js"></script>
+  <script src="js/modules/demandas.js"></script>
+  <script src="js/modules/projetos.js"></script>
+  <script src="js/modules/despacho.js"></script>
+  <script src="js/modules/inteligencia.js"></script>
+  <script src="js/modules/ia.js"></script>
+  <script src="js/modules/agenda.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

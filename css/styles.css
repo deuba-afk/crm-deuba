@@ -481,6 +481,28 @@ a{color:inherit;text-decoration:none}
 .desp-check .desp-box{width:26px;height:26px;border-radius:8px;border:2px solid var(--green-300);display:grid;place-items:center;color:transparent;font-size:15px;transition:.15s}
 .desp-check input:checked + .desp-box{background:var(--green-600);border-color:var(--green-600);color:#fff}
 
+/* ===================== DESPACHO (novo) ===================== */
+.desp-filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.desp-filtro-btn{padding:8px 18px;border-radius:20px;border:2px solid var(--green-200);background:#fff;color:var(--green-700);font-size:13px;font-weight:600;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px}
+.desp-filtro-btn:hover{border-color:var(--green-500);background:var(--green-50)}
+.desp-filtro-btn.ativo{background:var(--green-700);border-color:var(--green-700);color:#fff}
+.desp-filtro-n{background:rgba(255,255,255,.25);border-radius:10px;padding:0 7px;font-size:11px;font-weight:700}
+.desp-filtro-btn:not(.ativo) .desp-filtro-n{background:var(--green-100);color:var(--green-700)}
+.desp-card{padding:16px 20px;margin-bottom:12px}
+.desp-card-top{display:flex;align-items:flex-start;gap:14px;justify-content:space-between;flex-wrap:wrap}
+.desp-card-info{flex:1;min-width:0}
+.desp-card-actions{display:flex;gap:8px;flex-shrink:0;align-items:center;flex-wrap:wrap}
+.desp-status{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 10px;border-radius:12px;margin-top:6px}
+.desp-status.pendente{background:#fff7e6;color:#b45309}
+.desp-status.andamento{background:#e8f0fb;color:#2563eb}
+.desp-status.finalizado{background:#e8faf0;color:#16a34a}
+.desp-historico{margin-top:14px;border-top:1px solid var(--green-100);padding-top:12px}
+.desp-hist-titulo{font-size:11px;font-weight:700;color:var(--green-700);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.desp-hist-item{background:var(--green-50);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px}
+.desp-hist-data{font-weight:700;color:var(--green-900);margin-bottom:4px}
+.desp-hist-field{color:var(--text-secondary);margin-top:3px;line-height:1.5}
+.desp-hist-field strong{color:var(--text-primary)}
+
 /* ===================== IA ===================== */
 .ia-hero{background:linear-gradient(135deg,var(--green-800),var(--green-700));border-radius:var(--radius-lg);padding:24px 28px;color:#fff;margin-bottom:22px;position:relative;overflow:hidden}
 .ia-hero::after{content:'✦';position:absolute;right:30px;top:10px;font-size:90px;color:rgba(201,164,76,.18)}

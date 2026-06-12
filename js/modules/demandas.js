@@ -12,25 +12,69 @@ const Demandas = (() => {
     { id:'finalizado',  label:'Finalizado',       cor:'#1c7a4d' },
   ];
   const RESP = ['Deuba Assunção','Comunicação','Jurídico','Diretoria','Captação','Equipe'];
-  const AREAS = ['Comunicação e Marketing','Eventos','Leilões','Central de Doações','Voluntariado','Relações Institucionais','Outros'];
+  const AREAS = ['Comunicação e Marketing','Eventos','Leilões','Central de Doações','Voluntariado','Relações Institucionais','Parceria Institucional - Sem valoração financeira','Outros'];
+  const AREA_COR = {
+    'Comunicação e Marketing':                    { bg:'#dbeafe', text:'#1d4ed8' },
+    'Eventos':                                    { bg:'#ede9fe', text:'#6d28d9' },
+    'Leilões':                                    { bg:'#fef3c7', text:'#92400e' },
+    'Central de Doações':                         { bg:'#fee2e2', text:'#b91c1c' },
+    'Voluntariado':                               { bg:'#d1fae5', text:'#065f46' },
+    'Relações Institucionais':                    { bg:'#fce7f3', text:'#9d174d' },
+    'Parceria Institucional - Sem valoração financeira': { bg:'#ffedd5', text:'#9a3412' },
+    'Outros':                                     { bg:'#f3f4f6', text:'#374151' },
+  };
+  function areaBadge(area){
+    if(!area) return '';
+    const cor = AREA_COR[area] || { bg:'#f3f4f6', text:'#374151' };
+    const label = area.length > 22 ? area.slice(0,20)+'…' : area;
+    return `<span class="kc-area" style="background:${cor.bg};color:${cor.text}">${label}</span>`;
+  }
+
+  let filtroBusca = '';
+  let filtroArea  = '';
   const DESPACHO_TIPOS = ['Ciência','Acompanhamento','Deliberação','Orientação'];
 
   function render(){
+    const areas = [...new Set(Store.all('demandas').map(d=>d.areaGestao).filter(Boolean))].sort();
     return `
     <div class="section-head">
       <div><div class="eyebrow">Fluxo de Trabalho</div><h2>Gestão de Demandas</h2>
         <div class="sub">Arraste os cards entre as colunas para mudar o status</div></div>
-      <button class="btn btn-primary" id="dem-novo">+ Nova demanda</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-ghost btn-sm" id="dem-relatorio">📊 Relatório por área</button>
+        <button class="btn btn-primary" id="dem-novo">+ Nova demanda</button>
+      </div>
     </div>
     ${areaResumoHTML()}
+    <div class="dem-filtro-bar">
+      <span class="dem-filtro-label">Filtrar por área:</span>
+      <button class="dem-filtro-area ${!filtroArea?'ativo':''}" data-area="">Todas</button>
+      ${areas.map(a=>{ const cor=AREA_COR[a]||{bg:'#f3f4f6',text:'#374151'};
+        return `<button class="dem-filtro-area ${filtroArea===a?'ativo':''}" data-area="${UI.esc(a)}"
+          style="${filtroArea===a?`background:${cor.bg};color:${cor.text};border-color:${cor.text}`:''}">
+          ${UI.esc(a)}</button>`; }).join('')}
+    </div>
+    ${filtroBusca ? `<div class="dem-busca-info">🔍 Resultado para "<strong>${UI.esc(filtroBusca)}</strong>" — <a href="#" id="dem-limpar-busca">limpar</a></div>` : ''}
     <div class="kanban" id="kanban">
       ${COLS.map(colHTML).join('')}
     </div>`;
   }
 
   function colHTML(col){
-    const cards = Store.all('demandas').filter(d=>d.coluna===col.id)
-      .sort((a,b)=>prioRank(a.prioridade)-prioRank(b.prioridade));
+    const q = filtroBusca.toLowerCase();
+    const cards = Store.all('demandas').filter(d=>{
+      if(d.coluna !== col.id) return false;
+      if(filtroArea && d.areaGestao !== filtroArea) return false;
+      if(q){
+        const haystack = [d.titulo, d.descricao, d.areaGestao, d.responsavel,
+          d.direcionadoPara, d.diretoriaDecisao,
+          d.contatoId ? (Store.byId('contatos',d.contatoId)?.nome||'') : '',
+          d.projetoId  ? (Store.byId('projetos',d.projetoId)?.nome||'')  : ''
+        ].join(' ').toLowerCase();
+        if(!haystack.includes(q)) return false;
+      }
+      return true;
+    }).sort((a,b)=>prioRank(a.prioridade)-prioRank(b.prioridade));
     return `<div class="kcol" data-col="${col.id}">
       <div class="kcol-head"><span class="kc-dot" style="background:${col.cor}"></span>
         <span class="kc-title">${col.label}</span><span class="kc-count">${cards.length}</span></div>
@@ -42,32 +86,37 @@ const Demandas = (() => {
   }
 
   function cardHTML(d){
-    const c = d.contatoId?Store.byId('contatos',d.contatoId):null;
     const p = d.projetoId?Store.byId('projetos',d.projetoId):null;
     const dd = UI.daysFromNow(d.prazo);
     const atras = dd!==null && dd<0 && d.coluna!=='finalizado';
     const pcls = d.prioridade==='Alta'?'p-alta':d.prioridade==='Média'?'p-media':'p-baixa';
     return `<div class="kcard ${pcls}" draggable="true" data-card="${d.id}">
       <div class="kc-tit">${UI.esc(d.titulo)}</div>
+      ${d.areaGestao ? `<div style="margin:4px 0 2px">${areaBadge(d.areaGestao)}</div>` : ''}
       <div class="kc-meta">
         ${UI.prioTag(d.prioridade)}
         ${p?`<span class="tag" style="padding:1px 8px">🎯 ${UI.esc(p.nome)}</span>`:''}
         ${(d.comentarios&&d.comentarios.length)?`<span title="comentários">💬 ${d.comentarios.length}</span>`:''}
         ${(d.anexos&&d.anexos.length)?`<span title="anexos">📎 ${d.anexos.length}</span>`:''}
       </div>
-      <div class="kc-foot">
-        <span class="kc-resp">${c?UI.catIcon(c.categoria):'👤'} ${UI.esc(d.responsavel||'—')}</span>
-        ${d.prazo?`<span class="kc-prazo ${atras?'atrasado':''}">${atras?'⚠ ':''}${UI.relativeDays(d.prazo)}</span>`:''}
-      </div>
+      ${d.prazo?`<div class="kc-foot"><span class="kc-prazo ${atras?'atrasado':''}">${atras?'⚠ ':''}${UI.relativeDays(d.prazo)}</span></div>`:''}
     </div>`;
   }
 
   function afterRender(){
     document.getElementById('dem-novo').onclick=()=>openForm();
+    document.getElementById('dem-relatorio').onclick=()=>abrirRelatorio();
     document.querySelectorAll('[data-addcol]').forEach(b=>b.onclick=()=>openForm(null,b.dataset.addcol));
+    document.querySelectorAll('[data-area]').forEach(b=>b.onclick=()=>{
+      filtroArea = b.dataset.area;
+      App.go('demandas');
+    });
+    document.getElementById('dem-limpar-busca')?.addEventListener('click', e=>{ e.preventDefault(); filtroBusca=''; App.go('demandas'); });
     bindCards();
     bindDnD();
   }
+
+  function search(q){ filtroBusca = q; filtroArea = ''; App.go('demandas'); }
 
   function bindCards(){
     document.querySelectorAll('[data-card]').forEach(el=>{
@@ -423,6 +472,133 @@ const Demandas = (() => {
 
   const prioRank=(p)=>({Alta:0,'Média':1,Baixa:2}[p]??1);
   const colLabel=(c)=>COLS.find(x=>x.id===c)?.label||c;
+  const resc=(s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-  return { render, afterRender, openCard, openForm };
+  /* ── Relatório por área ── */
+  function abrirRelatorio(){
+    const todas = Store.all('demandas');
+    const areas = [...new Set(todas.map(d=>d.areaGestao).filter(Boolean))].sort();
+    if(!areas.length){ UI.toast('Nenhuma demanda com área cadastrada','⚠'); return; }
+
+    UI.openModal('Relatório por Área de Gestão', `
+      <p style="color:var(--muted);font-size:13px;margin-bottom:14px">Selecione as áreas que deseja incluir no relatório:</p>
+      <div style="display:flex;flex-direction:column;gap:8px" id="rel-areas">
+        ${areas.map(a => {
+          const cor = AREA_COR[a]||{bg:'#f3f4f6',text:'#374151'};
+          const n = todas.filter(d=>d.areaGestao===a).length;
+          return `<label class="desp-pdf-op">
+            <input type="checkbox" class="rel-area-chk" value="${resc(a)}" checked>
+            <span class="desp-pdf-label">
+              <span style="background:${cor.bg};color:${cor.text};padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700">${resc(a)}</span>
+              <span style="color:var(--muted);font-size:12px">${n} demanda${n!==1?'s':''}</span>
+            </span>
+          </label>`;
+        }).join('')}
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label>Status a incluir</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+          ${COLS.map(co=>`<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+            <input type="checkbox" class="rel-col-chk" value="${co.id}" checked> ${co.label}</label>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+        <button class="btn btn-ghost" onclick="UI.closeModal()">Cancelar</button>
+        <button class="btn btn-primary" id="rel-imprimir">📊 Gerar relatório</button>
+      </div>
+    `);
+
+    setTimeout(()=>{
+      document.getElementById('rel-imprimir')?.addEventListener('click',()=>{
+        const areasSel = [...document.querySelectorAll('.rel-area-chk:checked')].map(c=>c.value);
+        const colsSel  = [...document.querySelectorAll('.rel-col-chk:checked')].map(c=>c.value);
+        if(!areasSel.length || !colsSel.length){ UI.toast('Selecione ao menos uma área e um status','⚠'); return; }
+        UI.closeModal();
+        gerarRelatorio(areasSel, colsSel);
+      });
+    }, 50);
+  }
+
+  function gerarRelatorio(areasSel, colsSel){
+    const hoje = UI.fmtDate(new Date().toISOString());
+    const todas = Store.all('demandas');
+
+    const secoes = areasSel.map(area => {
+      const cor = AREA_COR[area]||{bg:'#f3f4f6',text:'#374151'};
+      const demandas = todas.filter(d=>d.areaGestao===area && colsSel.includes(d.coluna))
+        .sort((a,b)=>prioRank(a.prioridade)-prioRank(b.prioridade));
+      if(!demandas.length) return '';
+
+      const rows = demandas.map((d,i) => {
+        const c = d.contatoId ? Store.byId('contatos',d.contatoId) : null;
+        const p = d.projetoId ? Store.byId('projetos',d.projetoId)  : null;
+        const atras = d.prazo && UI.daysFromNow(d.prazo)<0 && d.coluna!=='finalizado';
+        return `<tr>
+          <td class="num">${i+1}</td>
+          <td>
+            <strong>${resc(d.titulo)}</strong>
+            ${d.descricao?fmtDesc(d.descricao):''}
+            ${c?`<div class="meta">👤 ${resc(c.nome)}</div>`:''}
+            ${p?`<div class="meta">🎯 ${resc(p.nome)}</div>`:''}
+          </td>
+          <td style="white-space:nowrap">${resc(d.prioridade)}</td>
+          <td style="white-space:nowrap">${resc(colLabel(d.coluna))}</td>
+          <td style="white-space:nowrap;${atras?'color:#b91c1c;font-weight:700':''}">${d.prazo?resc(UI.fmtDate(d.prazo)):'—'}</td>
+        </tr>`;
+      }).join('');
+
+      return `<tr><td colspan="5" class="area-header" style="background:${cor.bg};color:${cor.text}">${resc(area)} <span style="font-weight:400;font-size:11px">(${demandas.length} demanda${demandas.length!==1?'s':''})</span></td></tr>
+        ${rows}`;
+    }).join('');
+
+    if(!secoes.trim()){ UI.toast('Nenhuma demanda encontrada com os filtros selecionados','⚠'); return; }
+
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+      <title>Relatório de Demandas — ${hoje}</title>
+      <style>
+        *{font-family:Georgia,'Times New Roman',serif;color:#1a201c;box-sizing:border-box}
+        body{margin:40px;font-size:12px}
+        h1{font-size:18px;color:#8a3a5e;margin:0 0 2px}
+        .sub{color:#6b746d;font-size:11px;margin-bottom:14px}
+        .quote{font-style:italic;color:#b14a78;border-left:3px solid #c9a44c;padding:4px 12px;margin:10px 0 16px;font-size:11px}
+        table{width:100%;border-collapse:collapse;margin-bottom:4px}
+        th,td{border:1px solid #ecccdb;padding:7px 9px;vertical-align:top;text-align:left}
+        th{background:#fbe9f0;color:#8a3a5e;font-size:11px}
+        .area-header{font-weight:700;font-size:12px;padding:7px 10px;border-top:2px solid #c9a44c}
+        .num{width:26px;text-align:center;color:#6b746d}
+        .obs{color:#3a3a3a;font-size:11px;margin-top:4px;font-family:Arial,sans-serif;line-height:1.5}
+        ul.obs{margin:4px 0 2px 16px;padding:0}
+        ul.obs li{margin-bottom:1px}
+        .meta{color:#6b746d;font-size:10.5px;margin-top:2px;font-family:Arial,sans-serif}
+        .foot{margin-top:20px;font-size:10px;color:#9aa39c;border-top:1px solid #e2e6e3;padding-top:8px}
+        @media print{body{margin:15mm 18mm}}
+      </style></head><body>
+      <h1>Relatório de Demandas por Área de Gestão</h1>
+      <div class="sub">Gerência de Relações Institucionais · Araújo Jorge — Hospital de Câncer · ${hoje}</div>
+      <div class="quote">"Captação não é pedido. É construção de rede."</div>
+      <table>
+        <thead><tr><th class="num">#</th><th>Demanda</th><th>Prioridade</th><th>Status</th><th>Prazo</th></tr></thead>
+        <tbody>${secoes}</tbody>
+      </table>
+      <div class="foot">Documento gerado pelo Sistema de Gestão de Relacionamento — © DAS · Deuba Assunção · ${hoje}</div>
+      <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>
+      </body></html>`;
+
+    const w = window.open('','_blank');
+    if(!w){ UI.toast('Permita pop-ups para gerar o relatório','⚠'); return; }
+    w.document.write(html); w.document.close();
+  }
+
+  function fmtDesc(txt){
+    if(!txt) return '';
+    const linhas = txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    const temLista = linhas.some(l=>/^[-•*·\d+\.]/.test(l));
+    if(temLista){
+      const itens = linhas.map(l=>`<li>${resc(l.replace(/^[-•*·]\s*/,'').replace(/^\d+[\.\)]\s*/,''))}</li>`).join('');
+      return `<ul class="obs">${itens}</ul>`;
+    }
+    return `<div class="obs">${linhas.map(l=>resc(l)).join('<br>')}</div>`;
+  }
+
+  return { render, afterRender, openCard, openForm, search };
 })();

@@ -360,8 +360,16 @@ const App = (() => {
 
   function doSearch(q){
     if(!q) return;
-    if(window.Relacionamentos?.search){ go('relacionamentos'); Relacionamentos.search(q); }
-    else UI.toast('Busca: '+q);
+    const ql = q.toLowerCase();
+    const temDemanda = Store.all('demandas').some(d =>
+      [d.titulo, d.descricao, d.areaGestao, d.responsavel, d.direcionadoPara].join(' ').toLowerCase().includes(ql)
+    );
+    const temContato = Store.all('contatos').some(c =>
+      [c.nome, c.cargo, c.instituicao, c.categoria].join(' ').toLowerCase().includes(ql)
+    );
+    if(temDemanda){ go('demandas'); Demandas.search(q); }
+    else if(temContato && window.Relacionamentos?.search){ go('relacionamentos'); Relacionamentos.search(q); }
+    else { UI.toast('Nenhum resultado para "'+q+'"','⚠'); }
   }
 
   /* ---------- Boot ---------- */

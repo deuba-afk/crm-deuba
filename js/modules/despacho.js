@@ -213,55 +213,147 @@ const Despacho = (() => {
     }, 50);
   }
 
-  /* ── Geração de PDF ── */
+  /* ── Geração de PDF — abre modal de seleção de status ── */
   function gerarPDF(){
     const lista = pautas();
     if(!lista.length){ UI.toast('Não há pautas para imprimir','⚠'); return; }
-    const hoje = UI.fmtDate(new Date().toISOString());
 
-    const linhas = lista.map((d,i) => {
-      const c = d.contatoId ? Store.byId('contatos', d.contatoId) : null;
-      const p = d.projetoId ? Store.byId('projetos', d.projetoId) : null;
-      const st = status(d);
+    const pend = lista.filter(d => status(d) === 'pendente').length;
+    const anda = lista.filter(d => status(d) === 'andamento').length;
+    const fin  = lista.filter(d => status(d) === 'finalizado').length;
+
+    UI.openModal('Selecionar pautas para imprimir', `
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Marque quais status deseja incluir na impressão:</p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <label class="desp-pdf-op">
+          <input type="checkbox" id="pdf-pend" checked ${pend===0?'disabled':''}>
+          <span class="desp-pdf-label">
+            <span class="desp-status pendente" style="margin:0">⏳ A despachar</span>
+            <span style="color:var(--muted);font-size:12px">${pend} pauta${pend!==1?'s':''}</span>
+          </span>
+        </label>
+        <label class="desp-pdf-op">
+          <input type="checkbox" id="pdf-anda" checked ${anda===0?'disabled':''}>
+          <span class="desp-pdf-label">
+            <span class="desp-status andamento" style="margin:0">🔄 Em andamento</span>
+            <span style="color:var(--muted);font-size:12px">${anda} pauta${anda!==1?'s':''}</span>
+          </span>
+        </label>
+        <label class="desp-pdf-op">
+          <input type="checkbox" id="pdf-fin" ${fin===0?'disabled':''}>
+          <span class="desp-pdf-label">
+            <span class="desp-status finalizado" style="margin:0">✅ Finalizado</span>
+            <span style="color:var(--muted);font-size:12px">${fin} pauta${fin!==1?'s':''}</span>
+          </span>
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+        <button class="btn btn-ghost" onclick="UI.closeModal()">Cancelar</button>
+        <button class="btn btn-primary" id="pdf-confirmar">🖨️ Imprimir</button>
+      </div>
+    `);
+
+    setTimeout(() => {
+      document.getElementById('pdf-confirmar')?.addEventListener('click', () => {
+        const selecionados = [];
+        if(document.getElementById('pdf-pend')?.checked) selecionados.push('pendente');
+        if(document.getElementById('pdf-anda')?.checked) selecionados.push('andamento');
+        if(document.getElementById('pdf-fin')?.checked)  selecionados.push('finalizado');
+        if(!selecionados.length){ UI.toast('Selecione ao menos um status.','⚠'); return; }
+        UI.closeModal();
+        imprimirPDF(lista.filter(d => selecionados.includes(status(d))), selecionados);
+      });
+    }, 50);
+  }
+
+  function imprimirPDF(lista, selecionados){
+    const hoje = UI.fmtDate(new Date().toISOString());
+    const stNomes = { pendente:'A despachar', andamento:'Em andamento', finalizado:'Finalizado' };
+    const titulo = selecionados.length === 3
+      ? 'Todas as pautas'
+      : selecionados.map(s => stNomes[s]).join(' + ');
+
+    /* Formata descrição: preserva quebras de linha e marcadores */
+    function fmtDescricao(txt){
+      if(!txt) return '';
+      const linhas = txt.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const temLista = linhas.some(l => /^[-•*·\d+\.]/.test(l));
+      if(temLista){
+        const itens = linhas.map(l => {
+          const limpo = l.replace(/^[-•*·]\s*/,'').replace(/^\d+[\.\)]\s*/,'');
+          return `<li>${esc(limpo)}</li>`;
+        }).join('');
+        return `<ul class="desc-lista">${itens}</ul>`;
+      }
+      return `<div class="obs">${linhas.map(l => esc(l)).join('<br>')}</div>`;
+    }
+
+    let num = 0;
+    const secoes = selecionados.map(st => {
+      const items = lista.filter(d => status(d) === st);
+      if(!items.length) return '';
       const stLabel = { pendente:'⏳ A despachar', andamento:'🔄 Em andamento', finalizado:'✅ Finalizado' }[st];
-      const ultimoDesp = (d.despachoRegistros||[]).slice(-1)[0];
-      return `<tr>
-        <td class="num">${i+1}</td>
-        <td>
-          <strong>${esc(d.titulo)}</strong>
-          ${d.descricao?`<div class="obs">${esc(d.descricao)}</div>`:''}
-          ${c?`<div class="meta">Relacionamento: ${esc(c.nome)}</div>`:''}
-          ${p?`<div class="meta">Projeto: ${esc(p.nome)}</div>`:''}
-          ${ultimoDesp?`<div class="meta">Último despacho: ${esc(ultimoDesp.data)}${ultimoDesp.deliberacoes?' — '+esc(ultimoDesp.deliberacoes):''}</div>`:''}
-        </td>
-        <td>${esc(d.despachoTipo||'—')}</td>
-        <td>${stLabel}</td>
-      </tr>`;
+      const rows = items.map(d => {
+        num++;
+        const c = d.contatoId ? Store.byId('contatos', d.contatoId) : null;
+        const p = d.projetoId ? Store.byId('projetos', d.projetoId) : null;
+        const registros = d.despachoRegistros || [];
+        const histHtml = registros.map(r => `
+          <div class="hist-bloco">
+            <div class="hist-data">Despacho em ${esc(r.data)}</div>
+            ${r.deliberacoes ? fmtDescricao(r.deliberacoes) : ''}
+            ${r.obs ? `<div class="obs obs-it">${esc(r.obs)}</div>` : ''}
+          </div>`).join('');
+        return `<tr>
+          <td class="num">${num}</td>
+          <td>
+            <strong>${esc(d.titulo)}</strong>
+            ${fmtDescricao(d.descricao)}
+            ${c ? `<div class="meta">👤 ${esc(c.nome)}</div>` : ''}
+            ${p ? `<div class="meta">🎯 ${esc(p.nome)}</div>` : ''}
+            ${histHtml}
+          </td>
+          <td style="white-space:nowrap">${esc(d.despachoTipo||'—')}</td>
+        </tr>`;
+      }).join('');
+      return `
+        <tr class="st-header">
+          <td colspan="3" class="st-label">${stLabel}</td>
+        </tr>
+        ${rows}`;
     }).join('');
 
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
       <title>Pauta de Despacho — ${hoje}</title>
       <style>
-        *{font-family:Georgia,'Times New Roman',serif;color:#1a201c}
-        body{margin:40px}
-        h1{font-size:20px;color:#8a3a5e;margin:0 0 2px}
-        .sub{color:#6b746d;font-size:12px;margin-bottom:18px}
-        .quote{font-style:italic;color:#b14a78;border-left:3px solid #c9a44c;padding:4px 12px;margin:14px 0;font-size:12px}
-        table{width:100%;border-collapse:collapse;font-size:12px}
+        *{font-family:Georgia,'Times New Roman',serif;color:#1a201c;box-sizing:border-box}
+        body{margin:40px;font-size:12px}
+        h1{font-size:18px;color:#8a3a5e;margin:0 0 2px}
+        .sub{color:#6b746d;font-size:11px;margin-bottom:4px}
+        .subtit{color:#8a3a5e;font-size:12px;font-style:italic;margin-bottom:14px}
+        .quote{font-style:italic;color:#b14a78;border-left:3px solid #c9a44c;padding:4px 12px;margin:12px 0 16px;font-size:11px}
+        table{width:100%;border-collapse:collapse}
         th,td{border:1px solid #ecccdb;padding:8px 10px;vertical-align:top;text-align:left}
-        th{background:#fbe9f0;color:#8a3a5e}
-        .num{width:28px;text-align:center}
-        .obs{color:#4a524c;font-size:11px;margin-top:4px;font-family:Arial,sans-serif}
-        .meta{color:#6b746d;font-size:10.5px;margin-top:2px;font-family:Arial,sans-serif}
-        .foot{margin-top:24px;font-size:10px;color:#9aa39c;border-top:1px solid #e2e6e3;padding-top:8px}
-        @media print{body{margin:18mm}}
+        th{background:#fbe9f0;color:#8a3a5e;font-size:11px}
+        .st-header td{background:#f5dce8;color:#6f2f4d;font-weight:700;font-size:12px;padding:6px 10px;border-top:2px solid #c9a44c}
+        .num{width:26px;text-align:center;color:#6b746d}
+        .obs{color:#3a3a3a;font-size:11px;margin-top:5px;font-family:Arial,sans-serif;line-height:1.55}
+        .obs-it{font-style:italic;color:#5a5a5a}
+        .desc-lista{margin:5px 0 4px 16px;padding:0;font-family:Arial,sans-serif;font-size:11px;color:#3a3a3a;line-height:1.6}
+        .desc-lista li{margin-bottom:2px}
+        .meta{color:#6b746d;font-size:10.5px;margin-top:3px;font-family:Arial,sans-serif}
+        .hist-bloco{margin-top:8px;padding:6px 8px;background:#fdf7fa;border-left:3px solid #d4a0b8;border-radius:3px}
+        .hist-data{font-size:10px;color:#8a3a5e;font-weight:700;margin-bottom:3px;font-family:Arial,sans-serif}
+        .foot{margin-top:20px;font-size:10px;color:#9aa39c;border-top:1px solid #e2e6e3;padding-top:8px}
+        @media print{body{margin:15mm 18mm};page-break-inside:avoid}
       </style></head><body>
       <h1>Pauta de Despacho — Diretoria Executiva</h1>
       <div class="sub">Gerência de Relações Institucionais · Araújo Jorge — Hospital de Câncer · ${hoje}</div>
+      <div class="subtit">${titulo}</div>
       <div class="quote">"Captação não é pedido. É construção de rede."</div>
       <table>
-        <thead><tr><th class="num">#</th><th>Pauta</th><th>Finalidade</th><th>Status</th></tr></thead>
-        <tbody>${linhas}</tbody>
+        <thead><tr><th class="num">#</th><th>Pauta</th><th>Finalidade</th></tr></thead>
+        <tbody>${secoes}</tbody>
       </table>
       <div class="foot">Documento gerado pelo Sistema de Gestão de Relacionamento — © DAS · Deuba Assunção · ${hoje}</div>
       <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>

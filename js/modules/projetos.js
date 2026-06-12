@@ -242,10 +242,6 @@ Parceiros/patrocinadores envolvidos: ${[...new Set([...(p.parceiros||[]),...(p.p
         <div class="field"><label>Sponsor da equipe <span class="muted" style="font-weight:400">(quem toca o projeto com você)</span></label><input name="sponsor" value="${UI.esc(p.sponsor||'')}" placeholder="Nome do responsável da equipe"></div>
         <div class="field" id="pj-pausa-wrap" style="display:${p.status==='Pausado'?'block':'none'}"><label>Justificativa da pausa ${UI.mic('pj-pausa')}</label><textarea id="pj-pausa" name="justificativaPausa">${UI.esc(p.justificativaPausa||'')}</textarea></div>
         <div class="field-row">
-          <div class="field"><label>Meta de captação (R$)</label><input name="meta" type="number" min="0" value="${p.meta||0}"></div>
-          <div class="field"><label>Já captado (R$)</label><input name="captado" type="number" min="0" value="${p.captado||0}"></div>
-        </div>
-        <div class="field-row">
           <div class="field"><label>Início</label><input name="inicio" type="date" value="${p.inicio||''}"></div>
           <div class="field"><label>Conclusão prevista</label><input name="fim" type="date" value="${p.fim||''}"></div>
         </div>

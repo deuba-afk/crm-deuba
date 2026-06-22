@@ -229,7 +229,7 @@
       <main class="content" id="view"></main>
       <footer class="app-footer">
         <p>Sistema de gestão operacional e estratégica de eventos institucionais e beneficentes, destinado ao planejamento, à execução e à prestação de contas. Os dados são tratados com acesso restrito e finalidade exclusivamente institucional, em conformidade com os princípios da <strong>Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)</strong>.</p>
-        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.5 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
+        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.6 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
       </footer>
     </div>
   </div>
@@ -2363,10 +2363,11 @@
           <button class="tab ${tab==='dashboard'?'active':''}" onclick="ivTab('dashboard')">Dashboard</button>
           <button class="tab ${tab==='vendas'?'active':''}" onclick="ivTab('vendas')">Lançamento de Vendas</button>
           <button class="tab ${tab==='circulacao'?'active':''}" onclick="ivTab('circulacao')">Circulação &amp; Acertos</button>
+          <button class="tab ${tab==='recibo'?'active':''}" onclick="ivTab('recibo')">Recibo de Entrega</button>
           <button class="tab ${tab==='config'?'active':''}" onclick="ivTab('config')">Configuração</button>
         </div>
         <div id="venda-body"></div>`;
-      tab==='dashboard'?rDash(e):tab==='vendas'?rVendas(e):tab==='circulacao'?rCirc(e):rCfg(e);
+      tab==='dashboard'?rDash(e):tab==='vendas'?rVendas(e):tab==='circulacao'?rCirc(e):tab==='recibo'?rRecibo(e):rCfg(e);
       icons();
     };
     window.ivTab=t=>{tab=t;VIEWS.vendas();};
@@ -2622,6 +2623,72 @@
     };
 
     /* ---------- CONFIG ---------- */
+    /* ---- RECIBO DE ENTREGA ---- */
+    function rRecibo(e){
+      const r=e.reciboTmp||{};
+      $('#venda-body').innerHTML=`
+        <div class="card"><div class="card-head"><h3>Recibo de Entrega de Ingressos</h3>
+          <button class="btn btn-primary btn-sm" onclick="reciboPrint()"><i data-lucide="printer"></i>Imprimir recibo</button></div>
+          <p style="font-size:12px;color:var(--ink-faint);margin-bottom:12px">Preencha os dados da entrega. O restante do recibo (orientações, PIX, informações do evento e declaração) já vem no modelo oficial.</p>
+          <div class="form-row">
+            <div class="field"><label>Nome do Apoiador / Voluntário</label><input id="rc-nome" value="${esc(r.nome||'')}" onchange="reciboSet('nome',this.value)"/></div>
+            <div class="field"><label>Telefone para contato</label><input id="rc-tel" value="${esc(r.tel||'')}" onchange="reciboSet('tel',this.value)"/></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>Quantidade de ingressos entregues</label><input id="rc-qtd" value="${esc(r.qtd||'')}" onchange="reciboSet('qtd',this.value)"/></div>
+            <div class="field"><label>Numeração dos ingressos</label><input id="rc-num" value="${esc(r.num||'')}" placeholder="Ex.: 001 a 050" onchange="reciboSet('num',this.value)"/></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>Data da entrega</label><input id="rc-data" type="date" value="${r.data||''}" onchange="reciboSet('data',this.value)"/></div>
+            <div class="field"><label>Responsável pela entrega</label><input id="rc-resp" value="${esc(r.resp||'')}" onchange="reciboSet('resp',this.value)"/></div>
+          </div>
+          <div class="field"><label>Observações</label><textarea id="rc-obs" rows="2" onchange="reciboSet('obs',this.value)">${esc(r.obs||'')}</textarea></div>
+        </div>`;
+    }
+    window.reciboSet=function(k,v){ const e=ev(); e.reciboTmp=e.reciboTmp||{}; e.reciboTmp[k]=v; saveEv(); };
+    window.reciboPrint=function(){ const e=ev(); const r=e.reciboTmp||{};
+      const ln=v=>v&&String(v).trim()?esc(v):'________________________';
+      printHTML('Recibo de Entrega de Ingressos',`
+        <h1 style="text-align:center">RECIBO DE ENTREGA DE INGRESSOS</h1>
+        <p style="text-align:center"><strong>3º Risoto Solidário - Sabores do Cerrado em prol do Araújo Jorge</strong></p>
+        <p style="text-align:center;font-size:12px">Este documento formaliza a entrega dos ingressos e reúne as principais orientações para venda, controle dos comprovantes e acerto financeiro.</p>
+        <h2>1. Dados da entrega</h2>
+        <p><strong>Nome do Apoiador / Voluntário:</strong> ${ln(r.nome)}</p>
+        <p><strong>Telefone para contato:</strong> ${ln(r.tel)}</p>
+        <p><strong>Quantidade de ingressos entregues:</strong> ${ln(r.qtd)}</p>
+        <p><strong>Numeração dos ingressos:</strong> ${ln(r.num)}</p>
+        <p><strong>Data da entrega:</strong> ${r.data?dt(r.data):'____ / ____ / ______'}</p>
+        <h2>2. Orientações para venda e acerto</h2>
+        <ul>
+          <li>Data final para o acerto: <strong>30/06/2026</strong></li>
+          <li>Local: Setor de Eventos - das 08h às 17h</li>
+          <li>Pagamento: incentivamos que a venda seja realizada preferencialmente via PIX (QR Code disponível no documento oficial).</li>
+          <li>Para melhor controle financeiro, solicitamos que o acerto seja feito, sempre que possível, em uma única transação.</li>
+          <li>Os comprovantes de PIX deverão ser encaminhados para o WhatsApp: (62) 3243-7311 (somente WhatsApp).</li>
+          <li>Para mais informações sobre o acerto das vendas, entre em contato pelo mesmo número.</li>
+        </ul>
+        <h2>3. Acerto via PIX / QR Code</h2>
+        <p><strong>Banco:</strong> Caixa &nbsp; <strong>Conta:</strong> 577533912-2 &nbsp; <strong>Chave PIX:</strong> (62) 98109-4744</p>
+        <p>1. Abra o aplicativo do seu banco e escolha pagamento com Pix / QR Code. 2. Aponte a câmera para o código. 3. Informe o valor e confirme.</p>
+        <h2>4. Informações importantes</h2>
+        <p><strong>Crianças:</strong> até 6 anos entrada gratuita; a partir de 7 anos, ingresso individual.</p>
+        <p><strong>O ingresso dá direito a:</strong> consumo livre de todos os tipos de risoto, show ao vivo com a banda Maluê, acesso ao evento das 12h às 17h e água inclusa.</p>
+        <p><strong>Horários:</strong> serviço de risoto a partir das 12h; encerramento às 17h.</p>
+        <p><strong>Atenção:</strong> bebidas vendidas à parte; consumo somente no local. Mais informações: (62) 3243-7311.</p>
+        <h2>5. Observações</h2>
+        <p>${r.obs?esc(r.obs):'&nbsp;'}</p>
+        <h2>6. Declaração de recebimento</h2>
+        <p>Declaro que recebi os ingressos acima relacionados e estou ciente das orientações para venda, controle dos comprovantes e acerto financeiro até a data estabelecida.</p>
+        <br><br>
+        <table><tbody><tr>
+          <td style="text-align:center;border:none">______________________________<br>Assinatura do Apoiador Voluntário</td>
+          <td style="text-align:center;border:none">______________________________<br>Assinatura do Responsável pela Entrega${r.resp?'<br>'+esc(r.resp):''}</td>
+          <td style="text-align:center;border:none">____ / ____ / ______<br>Data</td>
+        </tr></tbody></table>
+        <br><p style="text-align:center">Vamos juntos transformar solidariedade em esperança. Contamos com seu apoio nas vendas!</p>
+        <p style="font-size:11px;text-align:center">Setor de Eventos | Gerência de Relações Institucionais · Araújo Jorge - Hospital de Câncer</p>`);
+    };
+
     function rCfg(e){
       const c=e.vendaCfg;
       $('#venda-body').innerHTML=`

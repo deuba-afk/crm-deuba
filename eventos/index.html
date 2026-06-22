@@ -229,7 +229,7 @@
       <main class="content" id="view"></main>
       <footer class="app-footer">
         <p>Sistema de gestão operacional e estratégica de eventos institucionais e beneficentes, destinado ao planejamento, à execução e à prestação de contas. Os dados são tratados com acesso restrito e finalidade exclusivamente institucional, em conformidade com os princípios da <strong>Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)</strong>.</p>
-        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.7 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
+        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.8 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
       </footer>
     </div>
   </div>
@@ -2518,6 +2518,7 @@
         <div class="card"><div class="card-head"><h3>Entrega de Ingressos Físicos em Circulação</h3>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-ghost btn-sm" onclick="ivModeloCirc()"><i data-lucide="file-spreadsheet"></i>Modelo</button>
+            <button class="btn btn-ghost btn-sm" onclick="ivLimparCirc()"><i data-lucide="eraser"></i>Limpar lista</button>
             <button class="btn btn-ghost btn-sm" onclick="ivImportCirc()"><i data-lucide="upload"></i>Importar</button>
             <button class="btn btn-ghost btn-sm" onclick="ivExport()"><i data-lucide="download"></i>Excel</button>
             <button class="btn btn-ghost btn-sm" onclick="window.print()"><i data-lucide="printer"></i>PDF</button>
@@ -2620,6 +2621,9 @@
       e.circulacao.forEach(c=>(c.acertos||[]).forEach(a=>{const u=num(c.valorUnit)||m.u;rows.push([dt(a.data),'IC '+c.numero,c.nome,c.categoria,num(a.acertada),num(a.devolvida),fmtBRL(u),fmtBRL(num(a.acertada)*u)]);}));
       exportXLS('acertos-'+(e.name||'evento'),['Data','Controle','Pessoa','Categoria','Acertada','Devolvida','Valor unit.','Valor arrecadado'],rows);
     };
+    window.ivLimparCirc=function(){ const e=ev(); if(!e.circulacao.length){toast('A lista já está vazia.');return;}
+      if(!confirm('Apagar TODAS as '+e.circulacao.length+' entregas da lista de circulação? (use antes de reimportar)'))return;
+      e.circulacao=[]; saveEv(); VIEWS.vendas(); toast('Lista de circulação limpa.'); };
     window.ivModeloCirc=function(){
       exportXLS('modelo-circulacao',['categoria','nome','data','quantidade','valor','acertado','devolvido'],
         [['Conselho de Administração','Fulano de Tal','2026-06-22','10','75','0','0'],['Chef Solidário','Beltrana','2026-06-22','20','75','5','0']]);
@@ -2644,7 +2648,7 @@
         const acertada=num(g(x,'acertado','acertada','qtd acertada','quantidade acertada','vendido','vendidos','vendida'));
         const devolvida=num(g(x,'devolvido','devolvida','qtd devolvida','quantidade devolvida'));
         const vu=parseBRL(g(x,'valor','valor unitário','valor unit','valor unitario','vlr unit'))||unit(e);
-        if(!nome && !entregue && !acertada) return; // pula linhas sem dados úteis
+        if(!nome || /^(total|totais|soma|subtotal|geral)\b/i.test(nome)) return; // exige nome; pula totais/somatórios/linhas em branco
         const ano=(data||'').slice(0,4).match(/^\d{4}$/)?data.slice(0,4):String(new Date().getFullYear());
         const seq=e.circulacao.reduce((mx,c)=>Math.max(mx,parseInt(c.numero)||0),0)+1;
         const acertos=[]; if(acertada>0||devolvida>0) acertos.push({id:uid(),data:'',acertada:acertada,devolvida:devolvida,obs:'importado'});

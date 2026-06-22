@@ -223,12 +223,13 @@
         <span class="topbar-event hidden" id="topbar-event"></span>
         <span id="sync-pill" class="badge b-gray" style="margin-right:6px"></span>
         <div class="user-chip"><div class="avatar-sm" id="user-avatar">DA</div><span id="user-name">Deuba</span></div>
+        <button class="icon-btn" id="pass-btn" title="Trocar senha" style="display:none" onclick="trocarSenha()"><i data-lucide="key-round"></i></button>
         <button class="icon-btn" id="logout-btn" title="Sair"><i data-lucide="log-out"></i></button>
       </header>
       <main class="content" id="view"></main>
       <footer class="app-footer">
         <p>Sistema de gestão operacional e estratégica de eventos institucionais e beneficentes, destinado ao planejamento, à execução e à prestação de contas. Os dados são tratados com acesso restrito e finalidade exclusivamente institucional, em conformidade com os princípios da <strong>Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)</strong>.</p>
-        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.2 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
+        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.3 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
       </footer>
     </div>
   </div>
@@ -282,7 +283,20 @@
       setSync('ok');return true;}
     function schedulePush(){if(!cloudMode)return;setSync('saving');clearTimeout(pushTimer);pushTimer=setTimeout(()=>push().then(()=>setSync('ok')).catch(()=>setSync('off')),900);}
     async function logout(){if(client){try{await client.auth.signOut();}catch(e){}}cloudMode=false;encKey=null;}
-    return {login,schedulePush,logout,isCloud:()=>cloudMode};
+    async function changePassword(newPwd){
+      if(!cloudMode||!client) throw new Error('Disponível apenas na versão online (nuvem).');
+      const u=(await client.auth.getUser()).data.user; if(!u) throw new Error('Sessão expirada — entre novamente.');
+      const newSalt=crypto.getRandomValues(new Uint8Array(16));
+      const newKey=await deriveKey(newPwd,newSalt);
+      const payload=await encObj(DB.data,newKey);
+      const{error:e1}=await client.from('ge_vault').upsert({user_id:u.id,salt:JSON.stringify(Array.from(newSalt)),blob:JSON.stringify(payload),updated_at:new Date().toISOString()},{onConflict:'user_id'});
+      if(e1) throw e1;
+      const newAuthp=await authPassword(u.email,newPwd);
+      const{error:e2}=await client.auth.updateUser({password:newAuthp});
+      if(e2) throw new Error('O cofre foi recriptografado, mas a autenticação não atualizou. Tente trocar a senha de novo SEM sair do sistema. ('+(e2.message||'')+')');
+      encKey=newKey; salt=newSalt;
+    }
+    return {login,schedulePush,logout,changePassword,isCloud:()=>cloudMode};
   })();
   (function(){const _s=DB.save.bind(DB);DB.save=function(){_s();if(Sync.isCloud())Sync.schedulePush();};})();
 
@@ -357,9 +371,19 @@
   $('#logout-btn').onclick=async ()=>{ if(Sync.isCloud()) await Sync.logout(); DB.data.session=null; DB.save(); location.reload(); };
   $('#menu-btn').onclick=()=>$('#sidebar').classList.toggle('open');
 
+  window.trocarSenha=async function(){
+    if(!Sync.isCloud()){ toast('Disponível apenas na versão online.'); return; }
+    const p1=prompt('Nova senha (mínimo 6 caracteres):'); if(!p1) return;
+    if(p1.length<6){ alert('A senha precisa ter ao menos 6 caracteres.'); return; }
+    const p2=prompt('Confirme a nova senha:'); if(p2!==p1){ alert('As senhas não conferem.'); return; }
+    try{ setSync('saving'); await Sync.changePassword(p1); setSync('ok');
+      alert('Senha alterada com sucesso. A partir de agora, todos entram com a NOVA senha. Avise a equipe.'); }
+    catch(e){ setSync('off'); alert('Não foi possível trocar a senha: '+(e.message||e)); }
+  };
   function enterApp(){
     $('#login-screen').classList.add('hidden');
     $('#app').classList.remove('hidden');
+    if(Sync.isCloud()){ const pb=document.getElementById('pass-btn'); if(pb) pb.style.display=''; }
     $('#user-avatar').textContent=currentUser.initials;
     $('#user-name').textContent=currentUser.name.split(' ')[0];
     go('home');

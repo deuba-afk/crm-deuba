@@ -2640,7 +2640,7 @@
         const nome=g(x,'nome','responsável','responsavel','apoiador','apoiador / voluntário','apoiador / voluntario','vendedor','pessoa');
         const cat=g(x,'categoria','função','funcao','vínculo','vinculo','tipo')||'Outros';
         const data=g(x,'data','data entrega','data da entrega','entrega');
-        const entregue=num(g(x,'quantidade','entregue','qtd','qtd entregue','quantidade entregue','ingressos','ingressos entregues','qtd. entregue'));
+        const entregue=num(g(x,'quantidade','entregue','qtd','qtd entregue','quantidade entregue','ingressos','ingressos entregues','qtd. entregue','recebido','recebida','recebidos','qtd recebida','quantidade recebida','recebidos para venda'));
         const acertada=num(g(x,'acertado','acertada','qtd acertada','quantidade acertada','vendido','vendidos','vendida'));
         const devolvida=num(g(x,'devolvido','devolvida','qtd devolvida','quantidade devolvida'));
         const vu=parseBRL(g(x,'valor','valor unitário','valor unit','valor unitario','vlr unit'))||unit(e);

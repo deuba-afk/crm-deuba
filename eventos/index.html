@@ -229,7 +229,7 @@
       <main class="content" id="view"></main>
       <footer class="app-footer">
         <p>Sistema de gestão operacional e estratégica de eventos institucionais e beneficentes, destinado ao planejamento, à execução e à prestação de contas. Os dados são tratados com acesso restrito e finalidade exclusivamente institucional, em conformidade com os princípios da <strong>Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)</strong>.</p>
-        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.3 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
+        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.4 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
       </footer>
     </div>
   </div>
@@ -321,6 +321,29 @@
       rows.map(r=>'<tr>'+r.map(c=>`<td>${String(c==null?'':c).replace(/</g,'&lt;')}</td>`).join('')+'</tr>').join('')+'</table></body></html>';
     const blob=new Blob(['﻿'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename+'.xls'; a.click();
+  };
+  /* ===== Leitor unificado de planilhas (CSV + Excel .xlsx/.xls) ===== */
+  async function ensureXLSX(){ if(window.XLSX)return; await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';s.onload=res;s.onerror=()=>rej(new Error('Sem internet para ler o Excel.'));document.head.appendChild(s);}); }
+  window.pickSheet=function(onRows){
+    const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,.txt,.xlsx,.xls';
+    inp.onchange=async ()=>{ const f=inp.files[0]; if(!f)return;
+      try{
+        let rows;
+        if(/\.(xlsx|xls)$/i.test(f.name)){
+          await ensureXLSX();
+          const buf=await f.arrayBuffer();
+          const wb=XLSX.read(buf,{type:'array'});
+          const ws=wb.Sheets[wb.SheetNames[0]];
+          const arr=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+          rows=arr.map(o=>{const r={};Object.keys(o).forEach(k=>r[String(k).trim().toLowerCase()]=String(o[k]==null?'':o[k]).trim());return r;});
+        } else {
+          rows=(typeof parseCSV==='function')?parseCSV(await f.text()):[];
+        }
+        if(!rows||!rows.length){ toast('Arquivo vazio ou sem linhas legíveis.'); return; }
+        onRows(rows);
+      }catch(err){ toast('Falha ao ler o arquivo: '+(err.message||err)); }
+    };
+    inp.click();
   };
   const dt=d=>d?d.split('-').reverse().join('/'):'-';
   const esc=s=>String(s??'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
@@ -1086,17 +1109,12 @@
 
   /* ---- importação (uma dupla por linha; chefA e, se houver, chefB) ---- */
   window.chefsImport=function(){
-    const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,.txt';
-    inp.onchange=()=>{ const f=inp.files[0]; if(!f)return; const r=new FileReader();
-      r.onload=()=>{ const rows=parseCSV(r.result); if(!rows.length){toast('Arquivo vazio.');return;}
-        window._chImp=rows;
-        openModal('Conferência da Importação',`<p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${rows.length} linha(s). Colunas: dupla, risoto, nome (chef A), telefone, email, nome_b, telefone_b.</p>
-          <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Dupla</th><th>Chef A</th><th>Chef B</th></tr></thead><tbody>
-          ${rows.map(x=>`<tr><td>${esc(x.dupla||'')}</td><td>${esc(x.nome||'')}</td><td>${esc(x.nome_b||x.nomeb||'')}</td></tr>`).join('')}</tbody></table></div>
-          <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="chefsConfirmImport()">Confirmar cadastro</button>`);
-      };
-      r.readAsText(f,'utf-8'); };
-    inp.click();
+    pickSheet(rows=>{ window._chImp=rows;
+      openModal('Conferência da Importação',`<p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${rows.length} linha(s). Colunas: dupla, risoto, nome (chef A), telefone, email, nome_b, telefone_b.</p>
+        <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Dupla</th><th>Chef A</th><th>Chef B</th></tr></thead><tbody>
+        ${rows.map(x=>`<tr><td>${esc(x.dupla||'')}</td><td>${esc(x.nome||'')}</td><td>${esc(x.nome_b||x.nomeb||'')}</td></tr>`).join('')}</tbody></table></div>
+        <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="chefsConfirmImport()">Confirmar cadastro</button>`);
+    });
   };
   window.chefsConfirmImport=function(){ const e=ev();
     (window._chImp||[]).forEach((x,i)=>{ e.chefs.push({id:uid(),numero:x.numero||(e.chefs.length+1),nomeDupla:x.dupla||'',receitaNome:x.risoto||'',receitaDesc:'',categoria:'',
@@ -1431,13 +1449,8 @@
   };
   window.delDesp=function(id){ const e=ev(); e.despesas=e.despesas.filter(d=>d.id!==id); saveEv(); VIEWS.financeiro(); };
 
-  /* importação CSV */
-  window.importDespFile=function(){
-    const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,.txt';
-    inp.onchange=()=>{ const f=inp.files[0]; if(!f)return; const r=new FileReader();
-      r.onload=()=>previewImportDesp(parseCSV(r.result)); r.readAsText(f,'utf-8'); };
-    inp.click();
-  };
+  /* importação (CSV + Excel) */
+  window.importDespFile=function(){ pickSheet(rows=>previewImportDesp(rows)); };
   function parseCSV(text){
     const sep=text.indexOf(';')>-1&&text.indexOf(';')<text.indexOf('\n')?';':',';
     const lines=text.replace(/\r/g,'').split('\n').filter(l=>l.trim());
@@ -1804,17 +1817,12 @@
     exportXLS(d.file+'-'+(e.name||'evento'),d.headers,rows);
   };
   window.comImport=function(which){ const d=COM_DEF[which];
-    const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,.txt';
-    inp.onchange=()=>{ const f=inp.files[0]; if(!f)return; const r=new FileReader();
-      r.onload=()=>{ const rows=parseCSV(r.result); if(!rows.length){toast('Arquivo vazio.');return;}
-        window._comImp={which,rows};
-        openModal('Conferência da Importação',`<p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${rows.length} linha(s). Colunas reconhecidas: ${d.keys.join(', ')}.</p>
-          <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table><thead><tr>${d.headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>
-          ${rows.map(x=>`<tr>${d.keys.map(k=>`<td>${esc(x[k]||x[k.toLowerCase()]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-          <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="comConfirmImport()">Confirmar</button>`);
-      };
-      r.readAsText(f,'utf-8'); };
-    inp.click();
+    pickSheet(rows=>{ window._comImp={which,rows};
+      openModal('Conferência da Importação',`<p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${rows.length} linha(s). Colunas reconhecidas: ${d.keys.join(', ')}.</p>
+        <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table><thead><tr>${d.headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>
+        ${rows.map(x=>`<tr>${d.keys.map(k=>`<td>${esc(x[k]||x[k.toLowerCase()]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+        <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="comConfirmImport()">Confirmar</button>`);
+    });
   };
   window.comConfirmImport=function(){ const e=ev(); const {which,rows}=window._comImp||{}; if(!which)return; const d=COM_DEF[which];
     let n=0;
@@ -2468,17 +2476,12 @@
       exportXLS('vendas-'+(e.name||'evento'),headers,rows);
     };
     window.ivImport=function(){
-      const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,.txt';
-      inp.onchange=()=>{ const f=inp.files[0]; if(!f)return; const r=new FileReader();
-        r.onload=()=>{ const rows=parseCSV(r.result); if(!rows.length){toast('Arquivo vazio.');return;}
-          window._ivImp=rows;
-          openModal('Conferência da Importação',`<p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${rows.length} linha(s). Colunas: data, canal, quantidade (ou qtd), valor.</p>
-            <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Data</th><th>Canal</th><th class="num">Qtd</th><th class="num">Valor</th></tr></thead><tbody>
-            ${rows.map(x=>`<tr><td>${esc(x.data||'')}</td><td>${esc(x.canal||'Online (Sympla)')}</td><td class="num">${esc(x.quantidade||x.qtd||'')}</td><td class="num">${esc(x.valor||'')}</td></tr>`).join('')}</tbody></table></div>
-            <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="ivConfirmImport()">Confirmar lançamento</button>`);
-        };
-        r.readAsText(f,'utf-8'); };
-      inp.click();
+      pickSheet(rows=>{ window._ivImp=rows;
+        openModal('Conferência da Importação',`<p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${rows.length} linha(s). Colunas reconhecidas: data, canal, quantidade (ou qtd), valor.</p>
+          <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Data</th><th>Canal</th><th class="num">Qtd</th><th class="num">Valor</th></tr></thead><tbody>
+          ${rows.map(x=>`<tr><td>${esc(x.data||'')}</td><td>${esc(x.canal||'Online (Sympla)')}</td><td class="num">${esc(x.quantidade||x.qtd||'')}</td><td class="num">${esc(x.valor||'')}</td></tr>`).join('')}</tbody></table></div>
+          <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="ivConfirmImport()">Confirmar lançamento</button>`);
+      });
     };
     window.ivConfirmImport=function(){ const e=ev();
       (window._ivImp||[]).forEach(x=>{ const q=num(x.quantidade||x.qtd); const val=parseBRL(x.valor)|| (q*unit(e));
@@ -2603,17 +2606,12 @@
       exportXLS('acertos-'+(e.name||'evento'),['Data','Controle','Pessoa','Categoria','Acertada','Devolvida','Valor unit.','Valor arrecadado'],rows);
     };
     window.ivImportCirc=function(){
-      const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,.txt';
-      inp.onchange=()=>{ const f=inp.files[0]; if(!f)return; const r=new FileReader();
-        r.onload=()=>{ const rows=parseCSV(r.result); if(!rows.length){toast('Arquivo vazio.');return;}
-          window._icImp=rows;
-          openModal('Conferência da Importação',`<p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${rows.length} entrega(s). Colunas: categoria, nome, data, quantidade (ou entregue), valor.</p>
-            <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Categoria</th><th>Nome</th><th>Data</th><th class="num">Qtd</th></tr></thead><tbody>
-            ${rows.map(x=>`<tr><td>${esc(x.categoria||'Outros')}</td><td>${esc(x.nome||'')}</td><td>${esc(x.data||x['data entrega']||'')}</td><td class="num">${esc(x.quantidade||x.entregue||'')}</td></tr>`).join('')}</tbody></table></div>
-            <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="ivConfirmImportCirc()">Confirmar entregas</button>`);
-        };
-        r.readAsText(f,'utf-8'); };
-      inp.click();
+      pickSheet(rows=>{ window._icImp=rows;
+        openModal('Conferência da Importação',`<p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${rows.length} entrega(s). Colunas reconhecidas: categoria, nome, data, quantidade (ou entregue), valor.</p>
+          <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Categoria</th><th>Nome</th><th>Data</th><th class="num">Qtd</th></tr></thead><tbody>
+          ${rows.map(x=>`<tr><td>${esc(x.categoria||'Outros')}</td><td>${esc(x.nome||'')}</td><td>${esc(x.data||x['data entrega']||'')}</td><td class="num">${esc(x.quantidade||x.entregue||'')}</td></tr>`).join('')}</tbody></table></div>
+          <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="ivConfirmImportCirc()">Confirmar entregas</button>`);
+      });
     };
     window.ivConfirmImportCirc=function(){ const e=ev();
       (window._icImp||[]).forEach(x=>{ const data=x.data||x['data entrega']||''; const ano=(data||'').slice(0,4)||String(new Date().getFullYear());
@@ -2779,13 +2777,9 @@
     window.aPubDel=function(id){ const e=ev(); e.publicacoes=e.publicacoes.filter(x=>x.id!==id); saveEv(); VIEWS.comunicacao(); };
     window.aPubExcel=function(){ const e=ev();
       exportXLS('clipping-'+(e.name||'evento'),['Data','Veículo','Título','Link','Observações'],e.publicacoes.map(p=>[dt(p.data),p.veiculo,p.titulo,p.link,p.obs])); };
-    window.aPubImport=function(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,.txt';
-      inp.onchange=()=>{ const f=inp.files[0]; if(!f)return; const rd=new FileReader();
-        rd.onload=()=>{ const rows=parseCSV(rd.result); if(!rows.length){toast('Arquivo vazio.');return;}
-          rows.forEach(x=>ev().publicacoes.push({id:uid(),data:x.data||'',veiculo:x.veiculo||x['veículo']||'',titulo:x.titulo||x['título']||x.materia||'',link:x.link||'',releaseId:'',obs:x.obs||''}));
-          saveEv(); VIEWS.comunicacao(); toast('Importação concluída ('+rows.length+').'); };
-        rd.readAsText(f,'utf-8'); };
-      inp.click(); };
+    window.aPubImport=function(){ pickSheet(rows=>{
+      rows.forEach(x=>ev().publicacoes.push({id:uid(),data:x.data||'',veiculo:x.veiculo||x['veículo']||'',titulo:x.titulo||x['título']||x.materia||'',link:x.link||'',releaseId:'',obs:x.obs||''}));
+      saveEv(); VIEWS.comunicacao(); toast('Importação concluída ('+rows.length+').'); }); };
 
     /* ---- DASHBOARD ---- */
     function aDash(){
@@ -2960,15 +2954,11 @@
         <table><thead><tr><th>Tarefa</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead><tbody>
         ${b.tarefas.map(t=>`<tr><td>${esc(t.desc)}</td><td>${esc(t.resp)}</td><td>${dt(t.prazo)}</td><td>${esc(t.status)}</td></tr>`).join('')||'<tr><td colspan="4">-</td></tr>'}</tbody></table>`;}).join('');
       printHTML('Checklist Operacional',`<h1>Checklist Operacional - ${esc(e.name||'')}</h1>${corpo}`); };
-    window.ckImport=function(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,.txt';
-      inp.onchange=()=>{ const f=inp.files[0]; if(!f)return; const r=new FileReader();
-        r.onload=()=>{ const rows=parseCSV(r.result); if(!rows.length){toast('Arquivo vazio.');return;} window._ckImp=rows;
-          openModal('Conferência da Importação',`<p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${rows.length} tarefa(s). Colunas: etapa, tarefa, responsavel, prazo, status.</p>
-            <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Etapa</th><th>Tarefa</th><th>Resp.</th><th>Status</th></tr></thead><tbody>
-            ${rows.map(x=>`<tr><td>${esc(x.etapa||'')}</td><td>${esc(x.tarefa||'')}</td><td>${esc(x.responsavel||x.resp||'')}</td><td>${esc(x.status||'Pendente')}</td></tr>`).join('')}</tbody></table></div>
-            <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="ckConfirmImport()">Confirmar</button>`); };
-        r.readAsText(f,'utf-8'); };
-      inp.click(); };
+    window.ckImport=function(){ pickSheet(rows=>{ window._ckImp=rows;
+        openModal('Conferência da Importação',`<p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${rows.length} tarefa(s). Colunas: etapa, tarefa, responsavel, prazo, status.</p>
+          <div class="tbl-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Etapa</th><th>Tarefa</th><th>Resp.</th><th>Status</th></tr></thead><tbody>
+          ${rows.map(x=>`<tr><td>${esc(x.etapa||'')}</td><td>${esc(x.tarefa||'')}</td><td>${esc(x.responsavel||x.resp||'')}</td><td>${esc(x.status||'Pendente')}</td></tr>`).join('')}</tbody></table></div>
+          <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="ckConfirmImport()">Confirmar</button>`); }); };
     window.ckConfirmImport=function(){ const e=ev(); (window._ckImp||[]).forEach(x=>{ const nome=(x.etapa||'Importadas').trim();
       let b=e.checklistBlocos.find(z=>z.nome.toLowerCase()===nome.toLowerCase()); if(!b){b={id:uid(),nome,periodo:'',responsavel:'',obs:'',tarefas:[]};e.checklistBlocos.push(b);}
       const st=CK_ST.includes(x.status)?x.status:'Pendente'; b.tarefas.push({id:uid(),desc:x.tarefa||'',resp:x.responsavel||x.resp||'',prazo:x.prazo||'',status:st,obs:'',criadoEm:nowStr(),concluidoEm:st==='Concluída'?nowStr():''}); });

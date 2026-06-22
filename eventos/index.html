@@ -229,7 +229,7 @@
       <main class="content" id="view"></main>
       <footer class="app-footer">
         <p>Sistema de gestão operacional e estratégica de eventos institucionais e beneficentes, destinado ao planejamento, à execução e à prestação de contas. Os dados são tratados com acesso restrito e finalidade exclusivamente institucional, em conformidade com os princípios da <strong>Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)</strong>.</p>
-        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.8 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
+        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.9 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
       </footer>
     </div>
   </div>
@@ -650,30 +650,50 @@
   };
 
   /* ---- DASHBOARD do evento ---- */
+  function dashBar(data,color){ const max=Math.max(1,...data.map(d=>d[1])); return `<div style="display:flex;flex-direction:column;gap:8px">${data.map(([l,v])=>`<div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${esc(l)}</span><strong>${money(v)}</strong></div><div style="background:var(--line);border-radius:6px;height:14px;overflow:hidden"><div style="width:${(v/max*100).toFixed(1)}%;height:100%;background:${color};border-radius:6px"></div></div></div>`).join('')||'<div class="empty">Sem dados.</div>'}</div>`; }
   VIEWS.dashboard=function(){
     const e=ev();
-    const vm=window.vendasMetrics?vendasMetrics(e):{vendaOficial:0,valorArrecadado:0};
-    const totVendas=vm.vendaOficial;
-    const recVendas=vm.valorArrecadado;
-    const recTotal=e.receitas.reduce((s,r)=>s+(Number(r.valor)||0),0)+recVendas;
-    const despTotal=e.despesas.reduce((s,d)=>s+(Number(d.valor)||0),0);
-    const patFechados=e.patrocinios.filter(p=>p.status==='Fechado').length;
-    const chkDone=e.checklist.filter(c=>c.status==='Concluído').length;
+    const vm=window.vendasMetrics?vendasMetrics(e):{vendaOficial:0,valorArrecadado:0,cap:0};
+    const totVendas=vm.vendaOficial, recVendas=vm.valorArrecadado;
+    const fechados=e.patrocinios.filter(p=>p.status==='Fechado');
+    const recPatroc=fechados.filter(p=>p.categoria!=='Apoiador').reduce((s,p)=>s+(+p.valor||0),0);
+    const recApoio=fechados.filter(p=>p.categoria==='Apoiador').reduce((s,p)=>s+(+p.valor||0),0);
+    const recManual=e.receitas.reduce((s,r)=>s+(+r.valor||0),0);
+    const recTotal=recVendas+recPatroc+recApoio+recManual;
+    const despTotal=e.despesas.reduce((s,d)=>s+(+d.valor||0),0);
+    const result=recTotal-despTotal;
+    const cap=vm.cap||0, pctMeta=cap?(totVendas/cap*100):0;
+    const dias=e.date?Math.ceil((new Date(e.date+'T12:00:00')-new Date())/86400000):null;
+    const cgTxt=dias==null?'—':dias>0?dias+' dia'+(dias>1?'s':'')+' p/ evento':dias===0?'É HOJE!':'evento realizado';
+    const chkB=e.checklistBlocos||[]; const chkTot=chkB.reduce((s,b)=>s+b.tarefas.length,0); const chkDone=chkB.reduce((s,b)=>s+b.tarefas.filter(t=>t.status==='Concluída').length,0);
     $('#view').innerHTML=`
-      <div class="kpi-grid">
-        <div class="kpi"><div class="kpi-label">Ingressos vendidos</div><div class="kpi-value">${totVendas}</div><div class="kpi-sub">${money(recVendas)}</div></div>
-        <div class="kpi green"><div class="kpi-label">Receita total</div><div class="kpi-value">${money(recTotal)}</div></div>
-        <div class="kpi red"><div class="kpi-label">Despesas</div><div class="kpi-value">${money(despTotal)}</div></div>
-        <div class="kpi blue"><div class="kpi-label">Resultado parcial</div><div class="kpi-value">${money(recTotal-despTotal)}</div></div>
-        <div class="kpi amber"><div class="kpi-label">Patrocínios fechados</div><div class="kpi-value">${patFechados}</div><div class="kpi-sub">de ${e.patrocinios.length} prospectados</div></div>
-        <div class="kpi"><div class="kpi-label">Checklist</div><div class="kpi-value">${chkDone}/${e.checklist.length}</div><div class="kpi-sub">itens concluídos</div></div>
+      <div class="card" style="background:${result>=0?'var(--success-bg)':'var(--danger-bg)'}"><div class="card-head"><h3>${esc(e.name)}</h3>
+        <span class="badge ${dias!=null&&dias<=15?'b-amber':'b-rose'}" style="padding:8px 14px;font-size:13px"><i data-lucide="alarm-clock"></i>${cgTxt}</span></div>
+        <div style="font-size:12px;color:var(--ink-soft)">Data: ${dt(e.date)} · Status: ${esc(e.status)}${cap?' · Meta de público: '+cap:''}</div>
       </div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">Ingressos vendidos</div><div class="kpi-value">${totVendas}</div><div class="kpi-sub">${money(recVendas)}${cap?' · '+pctMeta.toFixed(0)+'% da meta':''}</div></div>
+        <div class="kpi green"><div class="kpi-label">Receita total</div><div class="kpi-value">${money(recTotal)}</div><div class="kpi-sub">ingressos + patrocínios/apoio</div></div>
+        <div class="kpi red"><div class="kpi-label">Despesas</div><div class="kpi-value">${money(despTotal)}</div></div>
+        <div class="kpi blue"><div class="kpi-label">Resultado operacional</div><div class="kpi-value" style="color:${result>=0?'var(--info)':'var(--danger)'}">${money(result)}</div></div>
+        <div class="kpi amber"><div class="kpi-label">Patrocínios / Apoio</div><div class="kpi-value">${money(recPatroc+recApoio)}</div><div class="kpi-sub">${fechados.length} fechado(s)</div></div>
+        <div class="kpi"><div class="kpi-label">Checklist</div><div class="kpi-value">${chkDone}/${chkTot}</div><div class="kpi-sub">tarefas concluídas</div></div>
+      </div>
+      <div class="form-row">
+        <div class="card"><div class="card-head"><h3>Receita × Despesa</h3></div>${dashBar([['Receita total',recTotal],['Despesas',despTotal]],'var(--primary)')}</div>
+        <div class="card"><div class="card-head"><h3>Composição da Receita</h3></div>${dashBar([['Ingressos',recVendas],['Patrocínios',recPatroc],['Apoiadores',recApoio],['Outras',recManual]].filter(x=>x[1]>0),'var(--success)')}</div>
+      </div>
+      ${cap?`<div class="card"><div class="card-head"><h3>Ocupação de Ingressos</h3><strong>${pctMeta.toFixed(1)}%</strong></div>
+        <div style="background:var(--line);border-radius:8px;height:18px;overflow:hidden"><div style="width:${Math.min(100,pctMeta).toFixed(1)}%;height:100%;background:var(--success)"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-soft);margin-top:6px"><span>${totVendas} vendidos</span><span>meta ${cap}</span></div></div>`:''}
       <div class="card"><div class="card-head"><h3>Resumo do Evento</h3></div>
         <div class="detail-grid">
           <div class="dg-item"><span>Data</span>${dt(e.date)}</div>
+          <div class="dg-item"><span>Contagem regressiva</span>${cgTxt}</div>
           <div class="dg-item"><span>Status</span>${esc(e.status)}</div>
-          <div class="dg-item"><span>Chefs cadastrados</span>${e.chefs.length}</div>
+          <div class="dg-item"><span>${isRisoto(e)?'Chefs cadastrados':'Assessorias'}</span>${isRisoto(e)?e.chefs.length:(e.assessorias||[]).length}</div>
           <div class="dg-item"><span>Reuniões agendadas</span>${e.reunioes.filter(r=>r.status==='Agendada').length}</div>
+          <div class="dg-item"><span>Patrocínios fechados</span>${fechados.length} de ${e.patrocinios.length}</div>
         </div>
       </div>`;
   };

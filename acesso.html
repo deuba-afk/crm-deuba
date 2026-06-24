@@ -30,8 +30,12 @@ button:disabled{opacity:.6}
   <button id="btn" onclick="entrar()">Entrar</button>
 </div>
 
-<script src="js/cloud-config.js"></script>
 <script>
+window.CLOUD_CONFIG = {
+  url: 'https://qpvaseqokinuskupzhch.supabase.co',
+  key: 'sb_publishable_Zf5DNw5UbcVGTaLwVVMngA_14DzQ7-f'
+};
+
 async function loadSupabase(){
   if(window.supabase) return;
   await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });

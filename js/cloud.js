@@ -49,6 +49,19 @@ const Cloud = (() => {
   async function signOut(){ if(client) try{ await client.auth.signOut(); }catch(e){} }
   async function getUser(){ const { data } = await client.auth.getUser(); return data ? data.user : null; }
   async function hasSession(){ const { data } = await client.auth.getSession(); return !!(data && data.session); }
+  async function sendPasswordReset(email){
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
+    if(error) throw error;
+  }
+  async function updatePassword(newAuthp){
+    const { error } = await client.auth.updateUser({ password: newAuthp });
+    if(error) throw error;
+  }
+  async function getSessionFromUrl(){
+    const { data, error } = await client.auth.getSession();
+    return { session: data?.session, error };
+  }
 
   async function pull(){
     const { data, error } = await client.from('vault').select('salt,blob,updated_at').maybeSingle();
@@ -67,5 +80,5 @@ const Cloud = (() => {
     return updated_at;
   }
 
-  return { enabled, init, authPassword, signUp, signIn, signOut, getUser, hasSession, pull, push };
+  return { enabled, init, authPassword, signUp, signIn, signOut, getUser, hasSession, pull, push, sendPasswordReset, updatePassword, getSessionFromUrl };
 })();

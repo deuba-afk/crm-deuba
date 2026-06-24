@@ -91,7 +91,67 @@ const App = (() => {
     toggle.onclick = (e)=>{ e.preventDefault(); setSignup(!signupMode); };
     setSignup(false);
 
+    // "Esqueci minha senha"
+    document.getElementById('login-forgot').style.display = 'block';
+    document.getElementById('login-forgot-link').onclick = async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      if(!email){ UI.toast('Digite seu e-mail antes de clicar em "Esqueci minha senha"','⚠'); return; }
+      try{
+        await Cloud.init();
+        await Cloud.sendPasswordReset(email);
+        document.getElementById('login-note').textContent = '✅ Link enviado para '+email+'. Verifique sua caixa de entrada (e o spam).';
+        document.getElementById('login-note').style.color = 'var(--green-700)';
+      }catch(err){
+        UI.toast('Erro ao enviar: '+err.message,'⚠');
+      }
+    };
+
+    // detecta retorno do link de redefinição (hash #type=recovery na URL)
+    if(window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token')){
+      initPasswordReset();
+      return;
+    }
+
     document.getElementById('login-form').addEventListener('submit', onCloudSubmit);
+  }
+
+  async function initPasswordReset(){
+    const note = document.getElementById('login-note');
+    note.textContent = '🔑 Defina sua nova senha para acessar o sistema.';
+    note.style.color = 'var(--green-700)';
+    document.getElementById('login-email-wrap').style.display = 'none';
+    document.getElementById('login-confirm-wrap').style.display = 'block';
+    document.getElementById('login-btn').textContent = 'Salvar nova senha';
+    document.getElementById('login-toggle').style.display = 'none';
+    document.getElementById('login-forgot').style.display = 'none';
+
+    await Cloud.init();
+
+    document.getElementById('login-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const nova = document.getElementById('login-pass').value;
+      const conf = document.getElementById('login-pass2').value;
+      const err  = document.getElementById('login-error');
+      if(nova.length < 6){ err.textContent='A senha deve ter ao menos 6 caracteres.'; err.style.display='block'; return; }
+      if(nova !== conf){ err.textContent='As senhas não coincidem.'; err.style.display='block'; return; }
+      err.style.display='none';
+      const btn = document.getElementById('login-btn');
+      btn.disabled = true; btn.textContent = 'Salvando…';
+      try{
+        // email temporário para gerar o hash (não precisa ser exato pois a sessão já está ativa)
+        const user = await Cloud.getUser();
+        const email = user?.email || '';
+        const authp = await Cloud.authPassword(email, nova);
+        await Cloud.updatePassword(authp);
+        note.textContent = '✅ Senha redefinida! Entrando…';
+        window.location.hash = '';
+        setTimeout(()=>window.location.reload(), 1200);
+      }catch(ex){
+        err.textContent = 'Erro: '+ex.message; err.style.display='block';
+        btn.disabled=false; btn.textContent='Salvar nova senha';
+      }
+    });
   }
 
   function setSignup(on){

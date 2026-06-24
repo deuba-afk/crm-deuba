@@ -1,0 +1,121 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar — CRM Deuba</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#6f2f4d;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.box{background:#fff;border-radius:16px;padding:32px 24px;width:100%;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,.3)}
+h2{color:#6f2f4d;font-size:20px;margin-bottom:4px;text-align:center}
+.sub{color:#999;font-size:13px;text-align:center;margin-bottom:24px}
+label{display:block;font-size:13px;font-weight:600;color:#444;margin-bottom:4px;margin-top:14px}
+input{width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:9px;font-size:15px}
+input:focus{outline:none;border-color:#8a3a5e}
+button{width:100%;padding:13px;background:#8a3a5e;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:20px}
+button:disabled{opacity:.55}
+.msg{font-size:13px;text-align:center;margin-top:12px;padding:10px;border-radius:8px;display:none}
+.err{background:#fff0f0;color:#c0392b;border:1px solid #f5c6c6}
+.ok{background:#f0fff6;color:#1a7a4d;border:1px solid #b2e5c8}
+.step{color:#888;font-size:12px;text-align:center;margin-top:8px}
+</style></head><body>
+<div class="box">
+  <h2>🔐 Acesso ao CRM</h2>
+  <p class="sub">Deuba Assunção · Araújo Jorge</p>
+  <label>E-mail</label>
+  <input type="email" id="email" value="assuncaodeuba@gmail.com">
+  <label>Senha</label>
+  <input type="password" id="pass" placeholder="Sua senha" value="Venceremos@2075">
+  <button id="btn" onclick="entrar()">Entrar</button>
+  <div class="msg err" id="err"></div>
+  <div class="msg ok" id="ok"></div>
+  <p class="step" id="step"></p>
+</div>
+<script>
+const CFG={url:'https://qpvaseqokinuskupzhch.supabase.co',key:'sb_publishable_Zf5DNw5UbcVGTaLwVVMngA_14DzQ7-f'};
+const SENHAS_COFRE=['Venceremos@2075','Ritinhaminhavid@08','Edu@rdo4'];
+
+function log(t){document.getElementById('step').textContent=t;}
+function showErr(t){const e=document.getElementById('err');e.textContent=t;e.style.display='block';}
+function showOk(t){const e=document.getElementById('ok');e.textContent=t;e.style.display='block';}
+
+async function entrar(){
+  document.getElementById('err').style.display='none';
+  document.getElementById('ok').style.display='none';
+  const btn=document.getElementById('btn');
+  btn.disabled=true; btn.textContent='Aguarde…';
+  try{
+    log('Carregando…');
+    if(!window.supabase){
+      await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';s.onload=res;s.onerror=()=>rej(new Error('Sem internet'));document.head.appendChild(s);});
+    }
+    const email=document.getElementById('email').value.trim();
+    const pwd=document.getElementById('pass').value;
+
+    log('Verificando senha…');
+    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pwd+'::auth::'+email.toLowerCase()));
+    const authp='A1'+Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+
+    const client=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});
+    const {error:e1}=await client.auth.signInWithPassword({email,password:authp});
+    if(e1) throw new Error('E-mail ou senha incorretos.');
+
+    log('Buscando seus dados…');
+    const {data:row,error:e2}=await client.from('vault').select('salt,blob,updated_at').maybeSingle();
+    if(e2) throw new Error('Erro ao buscar dados: '+e2.message);
+
+    if(!row||!row.blob){
+      showOk('✅ Conta verificada! Redirecionando…');
+      setTimeout(()=>window.location.href='/',1500); return;
+    }
+
+    log('Decifrando dados…');
+    const salt=new Uint8Array(JSON.parse(row.salt));
+
+    async function dk(p,s){
+      const b=await crypto.subtle.importKey('raw',new TextEncoder().encode(p),'PBKDF2',false,['deriveKey']);
+      return crypto.subtle.deriveKey({name:'PBKDF2',salt:s,iterations:150000,hash:'SHA-256'},b,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+    }
+    async function dec(pl,k){
+      const iv=new Uint8Array(pl.iv);
+      const bin=atob(pl.ct),ct=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) ct[i]=bin.charCodeAt(i);
+      const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},k,ct.buffer);
+      return JSON.parse(new TextDecoder().decode(pt));
+    }
+    async function enc(obj,k){
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,new TextEncoder().encode(JSON.stringify(obj)));
+      const arr=new Uint8Array(ct);let s='';for(let i=0;i<arr.length;i++) s+=String.fromCharCode(arr[i]);
+      return {iv:Array.from(iv),ct:btoa(s)};
+    }
+
+    // Tenta todas as senhas conhecidas
+    const senhas=[pwd,...SENHAS_COFRE.filter(s=>s!==pwd)];
+    let dados=null,chaveSenha=null;
+    for(const s of senhas){
+      try{const k=await dk(s,salt);dados=await dec(JSON.parse(row.blob),k);chaveSenha=s;break;}catch(e){}
+    }
+    if(!dados) throw new Error('Nenhuma senha funcionou. Entre em contato com o suporte.');
+
+    // Se decifrou com senha diferente da principal, re-encripta com a senha principal
+    if(chaveSenha!==pwd){
+      log('Atualizando cofre…');
+      const ns=crypto.getRandomValues(new Uint8Array(16));
+      const nk=await dk(pwd,ns);
+      const blob2=JSON.stringify(await enc(dados,nk));
+      const {data:u}=await client.auth.getUser();
+      await client.from('vault').upsert({user_id:u.user.id,salt:JSON.stringify(Array.from(ns)),blob:blob2,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    }
+
+    log('');
+    showOk('✅ Acesso confirmado! Abrindo o sistema…');
+    setTimeout(()=>window.location.href='/',1500);
+
+  }catch(e){
+    showErr(e.message);
+    log('');
+    document.getElementById('btn').disabled=false;
+    document.getElementById('btn').textContent='Entrar';
+  }
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter') entrar();});
+</script>
+</body></html>

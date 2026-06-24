@@ -43,6 +43,10 @@
         <label id="login-confirm-wrap" style="display:none">Confirmar senha
           <input type="password" id="login-pass2" placeholder="repita a senha" autocomplete="new-password" />
         </label>
+        <div id="login-vault-wrap" style="display:none;background:#fff8f0;border:1px solid #f0c080;border-radius:10px;padding:12px;margin-bottom:8px">
+          <div style="font-size:12px;color:#92400e;margin-bottom:8px">🔐 Sua senha de acesso é diferente da senha dos dados. Digite a senha original com que os dados foram criados:</div>
+          <input type="password" id="login-vault-pass" placeholder="senha original dos dados" style="width:100%;padding:9px 12px;border:1px solid #f0c080;border-radius:8px;font-size:14px">
+        </div>
         <p id="login-error" style="display:none;color:var(--danger);font-size:12.5px;text-align:center;margin-bottom:10px">Senha incorreta.</p>
         <button type="submit" id="login-btn" class="btn btn-primary btn-block">Entrar</button>
         <p id="login-toggle" style="display:none;text-align:center;margin-top:12px;font-size:12.5px">

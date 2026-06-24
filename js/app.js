@@ -188,8 +188,22 @@ const App = (() => {
         enter();
       } else {
         btn.textContent='Entrando…';
-        await Store.cloudUnlock(email, p);
-        enter();
+        const vaultPass = document.getElementById('login-vault-pass')?.value || '';
+        try{
+          await Store.cloudUnlock(email, p, vaultPass || null);
+          enter();
+        }catch(ex){
+          if(ex.vaultMismatch){
+            // mostra campo para senha do cofre
+            const wrap = document.getElementById('login-vault-wrap');
+            if(wrap){ wrap.style.display='block'; document.getElementById('login-vault-pass')?.focus(); }
+            err.textContent = 'Digite abaixo a senha original com que seus dados foram criados.';
+            err.style.display='block';
+          } else {
+            throw ex;
+          }
+        }
+        return;
       }
     }catch(ex){
       err.textContent = traduzErroNuvem(ex);

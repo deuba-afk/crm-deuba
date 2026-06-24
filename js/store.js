@@ -80,17 +80,31 @@ const Store = (() => {
     return cloudUnlock(email, password);
   }
 
-  async function cloudUnlock(email, password){
+  async function cloudUnlock(email, password, vaultPassword){
     if(!cryptoOk()) throw new Error('Criptografia indisponível. Use o link online (https).');
     const authp = await Cloud.authPassword(email, password);
     await Cloud.signIn(email, authp);
     const row = await Cloud.pull();
     if(row && row.blob){
       const s = new Uint8Array(JSON.parse(row.salt));
-      const k = await deriveKey(password, s);
-      let st;
-      try{ st = await decryptPayload(JSON.parse(row.blob), k); }
-      catch(e){ throw new Error('Senha não confere com a do cadastro deste cofre.'); }
+      // tenta com a senha principal; se falhar, tenta com vaultPassword separada
+      const senhasParaTentar = [password];
+      if(vaultPassword && vaultPassword !== password) senhasParaTentar.push(vaultPassword);
+      let st, k;
+      let decifrou = false;
+      for(const pwd of senhasParaTentar){
+        try{
+          k = await deriveKey(pwd, s);
+          st = await decryptPayload(JSON.parse(row.blob), k);
+          decifrou = true;
+          break;
+        }catch(e){ /* tenta próxima */ }
+      }
+      if(!decifrou){
+        const err = new Error('Senha não confere com a do cadastro deste cofre.');
+        err.vaultMismatch = true;
+        throw err;
+      }
       state=st; key=k; salt=s; cloudMode=true; lastRemoteUpdatedAt=row.updated_at;
       ensureCollections(); persist(); setSync('ok');
       return true;

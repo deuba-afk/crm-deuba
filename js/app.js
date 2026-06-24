@@ -194,9 +194,18 @@ const App = (() => {
           enter();
         }catch(ex){
           if(ex.vaultMismatch){
-            // mostra campo para senha do cofre
-            const wrap = document.getElementById('login-vault-wrap');
-            if(wrap){ wrap.style.display='block'; document.getElementById('login-vault-pass')?.focus(); }
+            // mostra campo para senha do cofre (cria dinamicamente se não existir no HTML)
+            let wrap = document.getElementById('login-vault-wrap');
+            if(!wrap){
+              wrap = document.createElement('div');
+              wrap.id = 'login-vault-wrap';
+              wrap.style.cssText = 'background:#fff8f0;border:1.5px solid #f0c080;border-radius:10px;padding:12px;margin-bottom:8px';
+              wrap.innerHTML = '<div style="font-size:12px;color:#92400e;margin-bottom:8px">🔐 Sua senha de acesso é diferente da senha dos dados.<br>Digite a <strong>senha original</strong> com que seus dados foram criados:</div><input type="password" id="login-vault-pass" placeholder="senha original dos dados" style="width:100%;padding:9px 12px;border:1px solid #f0c080;border-radius:8px;font-size:14px;box-sizing:border-box">';
+              const errEl = document.getElementById('login-error');
+              errEl.parentNode.insertBefore(wrap, errEl);
+            }
+            wrap.style.display='block';
+            setTimeout(()=>document.getElementById('login-vault-pass')?.focus(), 100);
             err.textContent = 'Digite abaixo a senha original com que seus dados foram criados.';
             err.style.display='block';
           } else {

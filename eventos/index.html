@@ -229,7 +229,7 @@
       <main class="content" id="view"></main>
       <footer class="app-footer">
         <p>Sistema de gestão operacional e estratégica de eventos institucionais e beneficentes, destinado ao planejamento, à execução e à prestação de contas. Os dados são tratados com acesso restrito e finalidade exclusivamente institucional, em conformidade com os princípios da <strong>Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)</strong>.</p>
-        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v7.9 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
+        <p style="margin-top:6px">© DAS - Deuba Assunção · Gestão de Eventos · <strong>build v8.0 · nuvem</strong> · <em>Relacionamento é patrimônio institucional.</em></p>
       </footer>
     </div>
   </div>
@@ -276,7 +276,11 @@
     async function push(){const u=(await client.auth.getUser()).data.user;if(!u)throw new Error('Sessão expirada.');const payload=await encObj(DB.data,encKey);const{error}=await client.from('ge_vault').upsert({user_id:u.id,salt:JSON.stringify(Array.from(salt)),blob:JSON.stringify(payload),updated_at:new Date().toISOString()},{onConflict:'user_id'});if(error)throw error;}
     async function login(email,pwd){await init();const authp=await authPassword(email,pwd);
       let r=await client.auth.signInWithPassword({email,password:authp});
-      if(r.error){const su=await client.auth.signUp({email,password:authp});if(su.error)throw new Error(su.error.message||'Falha ao acessar.');r=await client.auth.signInWithPassword({email,password:authp});if(r.error)throw r.error;}
+      if(r.error){const su=await client.auth.signUp({email,password:authp});
+        if(su.error){ const m=(su.error.message||'').toLowerCase();
+          if(m.includes('already')||m.includes('registered')||m.includes('exists')) throw new Error('Senha incorreta para este e-mail. Use a senha definida no primeiro acesso.');
+          throw new Error(su.error.message||'Falha ao acessar.'); }
+        r=await client.auth.signInWithPassword({email,password:authp});if(r.error)throw new Error('Senha incorreta. Verifique a senha do primeiro acesso.');}
       const row=await pull();
       if(row&&row.blob){const s=new Uint8Array(JSON.parse(row.salt));const k=await deriveKey(pwd,s);let st;try{st=await decPayload(JSON.parse(row.blob),k);}catch(e){throw new Error('Senha não confere com a deste cofre de eventos.');}DB.data=st;ensureGE();encKey=k;salt=s;cloudMode=true;DB.save();}
       else{const s=crypto.getRandomValues(new Uint8Array(16));const k=await deriveKey(pwd,s);encKey=k;salt=s;cloudMode=true;ensureGE();await push();DB.save();}

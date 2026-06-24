@@ -107,8 +107,11 @@ const App = (() => {
       }
     };
 
-    // detecta retorno do link de redefinição (hash #type=recovery na URL)
-    if(window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token')){
+    // detecta retorno do link de redefinição via Supabase (PKCE ou implicit)
+    Cloud.onRecovery(()=>{ initPasswordReset(); });
+
+    // também testa hash legado
+    if(window.location.hash.includes('type=recovery')){
       initPasswordReset();
       return;
     }

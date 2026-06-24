@@ -62,6 +62,12 @@ const Cloud = (() => {
     const { data, error } = await client.auth.getSession();
     return { session: data?.session, error };
   }
+  async function onRecovery(callback){
+    await init();
+    client.auth.onAuthStateChange((event, session) => {
+      if(event === 'PASSWORD_RECOVERY') callback();
+    });
+  }
 
   async function pull(){
     const { data, error } = await client.from('vault').select('salt,blob,updated_at').maybeSingle();
@@ -80,5 +86,5 @@ const Cloud = (() => {
     return updated_at;
   }
 
-  return { enabled, init, authPassword, signUp, signIn, signOut, getUser, hasSession, pull, push, sendPasswordReset, updatePassword, getSessionFromUrl };
+  return { enabled, init, authPassword, signUp, signIn, signOut, getUser, hasSession, pull, push, sendPasswordReset, updatePassword, getSessionFromUrl, onRecovery };
 })();

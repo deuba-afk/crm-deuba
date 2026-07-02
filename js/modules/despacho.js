@@ -80,44 +80,39 @@ const Despacho = (() => {
       <button class="btn btn-gold" id="desp-pdf">🖨️ Relatório PDF</button>
     </div>
 
-    <!-- Cards de resumo das 3 diretorias -->
-    <div class="desp-dir-resumo">
-      ${resumo.map(r => `
-        <div class="desp-dir-card ${dirAtual === r.k ? 'ativo' : ''}" data-dir="${r.k}"
-             style="border-color:${r.cfg.border};${dirAtual===r.k?`background:${r.cfg.bg};`:''}">
-          <div class="desp-dir-card-ico">${r.cfg.ico}</div>
-          <div class="desp-dir-card-info">
-            <div class="desp-dir-card-nome" style="color:${dirAtual===r.k?r.cfg.text:'#374151'}">${r.cfg.label}</div>
-            <div class="desp-dir-card-num">
-              <span style="color:${r.cfg.text};font-weight:700">${r.total}</span>
-              <span class="muted"> pauta${r.total!==1?'s':''}</span>
-              ${r.pend > 0 ? `· <span style="color:#d97706;font-weight:600">${r.pend} pendente${r.pend!==1?'s':''}</span>` : ''}
-            </div>
-          </div>
-        </div>`).join('')}
-    </div>
-
-    <!-- Área da diretoria selecionada -->
-    <div class="desp-dir-area" style="border-color:${dir.border};background:${dir.headerBg}">
-      <div class="desp-dir-titulo" style="color:${dir.text}">${dir.ico} ${dir.label}</div>
-
-      <div class="kpi-grid" style="margin-top:12px">
-        ${kpi('🗣️','',lista.length,'Total de pautas')}
-        ${kpi('⏳','amber',pend,'A despachar')}
-        ${kpi('🔄','blue',anda,'Em andamento')}
-        ${kpi('✅','',fin,'Finalizadas')}
+    <!-- Abas das diretorias -->
+    <div class="desp-tabs-wrap">
+      <div class="desp-tabs">
+        ${resumo.map(r => `
+          <button class="desp-tab ${dirAtual === r.k ? 'ativo' : ''}" data-dir="${r.k}"
+            style="${dirAtual===r.k ? `border-color:${r.cfg.border};border-bottom-color:${r.cfg.bg};background:${r.cfg.bg};color:${r.cfg.text}` : ''}">
+            <span class="desp-tab-ico">${r.cfg.ico}</span>
+            <span class="desp-tab-nome">${r.cfg.label}</span>
+            <span class="desp-tab-badge" style="${dirAtual===r.k?`background:${r.cfg.text};color:#fff`:'background:#e5e7eb;color:#374151'}">${r.total}</span>
+            ${r.pend > 0 ? `<span class="desp-tab-pend">⏳${r.pend}</span>` : ''}
+          </button>`).join('')}
       </div>
 
-      <div class="desp-filtros">
-        ${[
-          {id:'pendente',  label:'A despachar',  ico:'⏳', n:pend},
-          {id:'andamento', label:'Em andamento', ico:'🔄', n:anda},
-          {id:'finalizado',label:'Finalizado',   ico:'✅', n:fin},
-        ].map(f=>`
-          <button class="desp-filtro-btn ${filtroAtual===f.id?'ativo':''}" data-filtro="${f.id}"
-            style="${filtroAtual===f.id?`background:${dir.bg};color:${dir.text};border-color:${dir.border}`:''}">
-            ${f.ico} ${f.label} <span class="desp-filtro-n">${f.n}</span>
+      <!-- Conteúdo da aba -->
+      <div class="desp-tab-content" style="border-color:${dir.border};background:${dir.headerBg}">
+        <div class="kpi-grid">
+          ${kpi('🗣️','',lista.length,'Total de pautas')}
+          ${kpi('⏳','amber',pend,'A despachar')}
+          ${kpi('🔄','blue',anda,'Em andamento')}
+          ${kpi('✅','',fin,'Finalizadas')}
+        </div>
+
+        <div class="desp-filtros" style="margin-bottom:0">
+          ${[
+            {id:'pendente',  label:'A despachar',  ico:'⏳', n:pend},
+            {id:'andamento', label:'Em andamento', ico:'🔄', n:anda},
+            {id:'finalizado',label:'Finalizado',   ico:'✅', n:fin},
+          ].map(f=>`
+            <button class="desp-filtro-btn ${filtroAtual===f.id?'ativo':''}" data-filtro="${f.id}"
+              style="${filtroAtual===f.id?`background:${dir.bg};color:${dir.text};border-color:${dir.border}`:''}">
+              ${f.ico} ${f.label} <span class="desp-filtro-n">${f.n}</span>
           </button>`).join('')}
+        </div>
       </div>
     </div>
 

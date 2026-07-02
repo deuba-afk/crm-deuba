@@ -517,6 +517,25 @@ a{color:inherit;text-decoration:none}
 .desp-pdf-op input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--green-700);flex-shrink:0}
 .desp-pdf-label{display:flex;align-items:center;gap:10px}
 
+/* ── Cards resumo das 3 diretorias ── */
+.desp-dir-resumo{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.desp-dir-card{border:2px solid #e5e7eb;border-radius:14px;padding:14px 16px;cursor:pointer;transition:.18s;display:flex;align-items:center;gap:12px;background:#fff}
+.desp-dir-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.desp-dir-card.ativo{box-shadow:0 4px 18px rgba(0,0,0,.10)}
+.desp-dir-card-ico{font-size:28px;line-height:1}
+.desp-dir-card-nome{font-size:13px;font-weight:700;margin-bottom:2px}
+.desp-dir-card-num{font-size:12px;color:#6b7280}
+.desp-dir-area{border:2px solid #e5e7eb;border-radius:14px;padding:16px 20px;margin-bottom:18px}
+.desp-dir-titulo{font-size:17px;font-weight:700}
+.desp-dir-badge{display:inline-block;border:1px solid;border-radius:20px;padding:1px 8px;font-size:11px;margin-left:2px}
+.desp-dirs-wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.desp-dir-box{border:2px solid #e5e7eb;border-radius:12px;padding:12px 14px;transition:.15s}
+.desp-dir-box-header{font-size:13px;font-weight:700;margin-bottom:6px}
+.desp-dir-box-status{font-size:12px;margin-bottom:4px}
+.desp-dir-box-meta{font-size:11.5px;color:#6b7280;margin-bottom:6px}
+.desp-dir-box-actions{display:flex;gap:6px;flex-wrap:wrap}
+@media(max-width:640px){.desp-dir-resumo,.desp-dirs-wrap{grid-template-columns:1fr}}
+
 /* ===================== IA ===================== */
 .ia-hero{background:linear-gradient(135deg,var(--green-800),var(--green-700));border-radius:var(--radius-lg);padding:24px 28px;color:#fff;margin-bottom:22px;position:relative;overflow:hidden}
 .ia-hero::after{content:'✦';position:absolute;right:30px;top:10px;font-size:90px;color:rgba(201,164,76,.18)}

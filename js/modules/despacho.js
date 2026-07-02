@@ -1,77 +1,147 @@
 /* =====================================================================
-   MÓDULO — DESPACHO COM A DIRETORIA EXECUTIVA
-   Status: A despachar → Em andamento → Finalizado
+   MÓDULO — DESPACHO COM AS DIRETORIAS
+   3 diretorias independentes: Executiva · Corporativa · Assistência
+   Status por diretoria: A despachar → Em andamento → Finalizado
    ===================================================================== */
 const Despacho = (() => {
 
+  const DIRS = {
+    'Executiva':   { label:'Diretoria Executiva',    ico:'💙', bg:'#dbeafe', text:'#1d4ed8', border:'#93c5fd', headerBg:'#eff6ff' },
+    'Corporativa': { label:'Diretoria Corporativa',  ico:'🩷', bg:'#fce7f3', text:'#9d174d', border:'#f9a8d4', headerBg:'#fdf2f8' },
+    'Assistência': { label:'Diretoria de Assistência', ico:'🧡', bg:'#fef3c7', text:'#92400e', border:'#fcd34d', headerBg:'#fffbeb' },
+  };
+  const DIR_KEYS = Object.keys(DIRS);
+
   const TIPO_TAG = { 'Ciência':'tag-blue','Acompanhamento':'tag-amber','Deliberação':'tag-red','Orientação':'tag-green' };
 
-  let filtroAtual = 'pendente'; // 'pendente' | 'andamento' | 'finalizado'
+  let dirAtual    = 'Executiva';
+  let filtroAtual = 'pendente';
 
-  /* ── Status de cada pauta ── */
-  function status(d){
-    if(d.despachoFinalizado) return 'finalizado';
-    if(d.despachoRealizado)  return 'andamento';
+  /* ── Lê dados de uma diretoria para uma demanda (com migração do formato antigo) ── */
+  function getDirData(d, dir) {
+    if (d.despachoDirs?.[dir]) return d.despachoDirs[dir];
+    // migração: dados antigos pertencem à Executiva
+    if (dir === 'Executiva' && d.despacho) {
+      return {
+        tipo:       d.despachoTipo || '',
+        data:       d.despachoData || '',
+        realizado:  !!d.despachoRealizado,
+        finalizado: !!d.despachoFinalizado,
+        registros:  d.despachoRegistros || [],
+        alinhada:   !!d.despachoAlinhada,
+        alinhadaData: d.despachoAlinhadaData || '',
+      };
+    }
+    return null;
+  }
+
+  function status(d, dir) {
+    const dd = getDirData(d, dir);
+    if (!dd) return null;
+    if (dd.finalizado) return 'finalizado';
+    if (dd.realizado)  return 'andamento';
     return 'pendente';
   }
 
-  function pautas(){
-    return Store.all('demandas').filter(d => d.despacho)
-      .sort((a,b) => (b.despachoData||'').localeCompare(a.despachoData||''));
-  }
-
-  function pautasFiltradas(){
-    return pautas().filter(d => status(d) === filtroAtual);
+  /* Todas as pautas de uma diretoria */
+  function pautasDe(dir) {
+    return Store.all('demandas')
+      .filter(d => getDirData(d, dir) !== null)
+      .sort((a, b) => {
+        const da = getDirData(a, dir)?.data || '';
+        const db = getDirData(b, dir)?.data || '';
+        return db.localeCompare(da);
+      });
   }
 
   /* ── Render principal ── */
-  function render(){
-    const lista  = pautas();
-    const pend   = lista.filter(d => status(d) === 'pendente').length;
-    const anda   = lista.filter(d => status(d) === 'andamento').length;
-    const fin    = lista.filter(d => status(d) === 'finalizado').length;
-    const filtradas = pautasFiltradas();
+  function render() {
+    const dir  = DIRS[dirAtual];
+    const lista = pautasDe(dirAtual);
+    const pend  = lista.filter(d => status(d, dirAtual) === 'pendente').length;
+    const anda  = lista.filter(d => status(d, dirAtual) === 'andamento').length;
+    const fin   = lista.filter(d => status(d, dirAtual) === 'finalizado').length;
+    const filtradas = lista.filter(d => status(d, dirAtual) === filtroAtual);
 
-    const filtros = [
-      { id:'pendente',  label:'A despachar',       ico:'⏳', n: pend },
-      { id:'andamento', label:'Em andamento',       ico:'🔄', n: anda },
-      { id:'finalizado',label:'Finalizado',         ico:'✅', n: fin  },
-    ];
+    // Resumo geral de todas as diretorias (para o topo)
+    const resumo = DIR_KEYS.map(k => {
+      const l = pautasDe(k);
+      const p = l.filter(d => status(d, k) === 'pendente').length;
+      return { k, cfg: DIRS[k], total: l.length, pend: p };
+    });
 
     return `
     <div class="section-head">
-      <div><div class="eyebrow">Governança</div><h2>Despacho — Diretoria Executiva</h2>
-        <div class="sub">Pautas do despacho semanal com o diretor executivo</div></div>
-      <button class="btn btn-gold" id="desp-pdf">🖨️ Gerar PDF para impressão</button>
+      <div>
+        <div class="eyebrow">Governança</div>
+        <h2>Despacho com a Diretoria</h2>
+        <div class="sub">Controle de pautas despachadas por diretoria</div>
+      </div>
+      <button class="btn btn-gold" id="desp-pdf">🖨️ Relatório PDF</button>
     </div>
 
-    <div class="kpi-grid">
-      ${kpi('🗣️','',lista.length,'Total de pautas')}
-      ${kpi('⏳','amber',pend,'A despachar')}
-      ${kpi('🔄','blue',anda,'Em andamento')}
-      ${kpi('✅','',fin,'Finalizadas')}
+    <!-- Cards de resumo das 3 diretorias -->
+    <div class="desp-dir-resumo">
+      ${resumo.map(r => `
+        <div class="desp-dir-card ${dirAtual === r.k ? 'ativo' : ''}" data-dir="${r.k}"
+             style="border-color:${r.cfg.border};${dirAtual===r.k?`background:${r.cfg.bg};`:''}">
+          <div class="desp-dir-card-ico">${r.cfg.ico}</div>
+          <div class="desp-dir-card-info">
+            <div class="desp-dir-card-nome" style="color:${dirAtual===r.k?r.cfg.text:'#374151'}">${r.cfg.label}</div>
+            <div class="desp-dir-card-num">
+              <span style="color:${r.cfg.text};font-weight:700">${r.total}</span>
+              <span class="muted"> pauta${r.total!==1?'s':''}</span>
+              ${r.pend > 0 ? `· <span style="color:#d97706;font-weight:600">${r.pend} pendente${r.pend!==1?'s':''}</span>` : ''}
+            </div>
+          </div>
+        </div>`).join('')}
     </div>
 
-    <div class="desp-filtros">
-      ${filtros.map(f=>`
-        <button class="desp-filtro-btn ${filtroAtual===f.id?'ativo':''}" data-filtro="${f.id}">
-          ${f.ico} ${f.label} <span class="desp-filtro-n">${f.n}</span>
-        </button>`).join('')}
+    <!-- Área da diretoria selecionada -->
+    <div class="desp-dir-area" style="border-color:${dir.border};background:${dir.headerBg}">
+      <div class="desp-dir-titulo" style="color:${dir.text}">${dir.ico} ${dir.label}</div>
+
+      <div class="kpi-grid" style="margin-top:12px">
+        ${kpi('🗣️','',lista.length,'Total de pautas')}
+        ${kpi('⏳','amber',pend,'A despachar')}
+        ${kpi('🔄','blue',anda,'Em andamento')}
+        ${kpi('✅','',fin,'Finalizadas')}
+      </div>
+
+      <div class="desp-filtros">
+        ${[
+          {id:'pendente',  label:'A despachar',  ico:'⏳', n:pend},
+          {id:'andamento', label:'Em andamento', ico:'🔄', n:anda},
+          {id:'finalizado',label:'Finalizado',   ico:'✅', n:fin},
+        ].map(f=>`
+          <button class="desp-filtro-btn ${filtroAtual===f.id?'ativo':''}" data-filtro="${f.id}"
+            style="${filtroAtual===f.id?`background:${dir.bg};color:${dir.text};border-color:${dir.border}`:''}">
+            ${f.ico} ${f.label} <span class="desp-filtro-n">${f.n}</span>
+          </button>`).join('')}
+      </div>
     </div>
 
-    ${lista.length===0
-      ? `<div class="empty"><div class="big">🗣️</div>Nenhuma pauta no despacho.<br/><span class="muted">Em uma demanda, use "Enviar para despacho da Diretoria Executiva".</span></div>`
-      : filtradas.length===0
-        ? `<div class="empty"><div class="big">${filtros.find(f=>f.id===filtroAtual).ico}</div>Nenhuma pauta nesta categoria.</div>`
-        : filtradas.map(rowHTML).join('')
+    ${lista.length === 0
+      ? `<div class="empty"><div class="big">${dir.ico}</div>Nenhuma pauta enviada para a ${dir.label}.<br/><span class="muted">Abra uma demanda e use o botão de envio para despacho.</span></div>`
+      : filtradas.length === 0
+        ? `<div class="empty"><div class="big">✨</div>Nenhuma pauta nesta categoria para a ${dir.label}.</div>`
+        : filtradas.map(d => rowHTML(d, dirAtual)).join('')
     }`;
   }
 
   /* ── Card de pauta ── */
-  function rowHTML(d){
-    const c = d.contatoId ? Store.byId('contatos', d.contatoId) : null;
-    const p = d.projetoId ? Store.byId('projetos', d.projetoId) : null;
-    const st = status(d);
+  function rowHTML(d, dir) {
+    const cfg = DIRS[dir];
+    const dd  = getDirData(d, dir);
+    const c   = d.contatoId ? Store.byId('contatos', d.contatoId) : null;
+    const p   = d.projetoId ? Store.byId('projetos', d.projetoId) : null;
+    const st  = status(d, dir);
+
+    // Badge de outras diretorias em que também está
+    const outrasDir = DIR_KEYS.filter(k => k !== dir && getDirData(d, k) !== null);
+    const outrasBadges = outrasDir.map(k =>
+      `<span class="desp-dir-badge" style="background:${DIRS[k].bg};color:${DIRS[k].text};border-color:${DIRS[k].border}">${DIRS[k].ico}</span>`
+    ).join('');
 
     const statusBadge = {
       pendente:   `<span class="desp-status pendente">⏳ A despachar</span>`,
@@ -79,8 +149,7 @@ const Despacho = (() => {
       finalizado: `<span class="desp-status finalizado">✅ Finalizado</span>`,
     }[st];
 
-    // Histórico de despachos registrados
-    const historico = (d.despachoRegistros||[]).map((r,i) => `
+    const historico = (dd?.registros || []).map(r => `
       <div class="desp-hist-item">
         <div class="desp-hist-data">📅 ${UI.fmtDate(r.data)}</div>
         ${r.deliberacoes ? `<div class="desp-hist-field"><strong>Deliberações:</strong> ${UI.esc(r.deliberacoes)}</div>` : ''}
@@ -89,20 +158,21 @@ const Despacho = (() => {
       </div>`).join('');
 
     return `
-    <div class="insight desp-card" data-id="${d.id}">
+    <div class="insight desp-card" data-id="${d.id}" style="border-left:4px solid ${cfg.border}">
       <div class="desp-card-top">
         <div class="desp-card-info">
           <div class="in-tit">${UI.esc(d.titulo)}</div>
           <div class="in-desc">
-            <span class="tag ${TIPO_TAG[d.despachoTipo]||'tag'}" style="padding:1px 8px">${UI.esc(d.despachoTipo||'—')}</span>
+            <span class="tag ${TIPO_TAG[dd?.tipo]||'tag'}" style="padding:1px 8px">${UI.esc(dd?.tipo||'—')}</span>
             ${c ? ` · 👤 ${UI.esc(c.nome)}` : ''}
             ${p ? ` · 🎯 ${UI.esc(p.nome)}` : ''}
-            · enviada ${d.despachoData ? UI.fmtDate(d.despachoData) : '—'}
+            · enviada ${dd?.data ? UI.fmtDate(dd.data) : '—'}
+            ${outrasBadges ? `<span style="margin-left:6px">também em ${outrasBadges}</span>` : ''}
           </div>
           ${statusBadge}
         </div>
         <div class="desp-card-actions">
-          ${st !== 'finalizado' ? `<button class="btn btn-primary btn-sm desp-registrar" data-id="${d.id}">📋 Registrar Despacho</button>` : ''}
+          ${st !== 'finalizado' ? `<button class="btn btn-primary btn-sm desp-registrar" data-id="${d.id}" data-dir="${dir}" style="background:${cfg.text}">📋 Registrar Despacho</button>` : ''}
           <button class="btn btn-ghost btn-sm" data-abrir="${d.id}">Ver demanda</button>
         </div>
       </div>
@@ -115,8 +185,17 @@ const Despacho = (() => {
   }
 
   /* ── afterRender ── */
-  function afterRender(){
-    // Filtros
+  function afterRender() {
+    // Abas de diretoria
+    document.querySelectorAll('[data-dir]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        dirAtual = btn.dataset.dir;
+        filtroAtual = 'pendente';
+        App.go('despacho');
+      });
+    });
+
+    // Filtros de status
     document.querySelectorAll('[data-filtro]').forEach(btn => {
       btn.addEventListener('click', () => {
         filtroAtual = btn.dataset.filtro;
@@ -126,7 +205,7 @@ const Despacho = (() => {
 
     // Registrar despacho
     document.querySelectorAll('.desp-registrar').forEach(btn => {
-      btn.addEventListener('click', () => abrirModalDespacho(btn.dataset.id));
+      btn.addEventListener('click', () => abrirModalDespacho(btn.dataset.id, btn.dataset.dir));
     });
 
     // Ver demanda
@@ -138,16 +217,17 @@ const Despacho = (() => {
   }
 
   /* ── Modal de registro de despacho ── */
-  function abrirModalDespacho(id){
-    const d = Store.byId('demandas', id);
-    if(!d) return;
+  function abrirModalDespacho(id, dir) {
+    const d   = Store.byId('demandas', id);
+    if (!d) return;
+    const cfg = DIRS[dir];
+    const dd  = getDirData(d, dir) || {};
 
-    UI.openModal('Registrar Despacho', `
-      <div style="margin-bottom:14px">
-        <strong style="color:var(--green-900)">${UI.esc(d.titulo)}</strong>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">
-          ${UI.esc(d.despachoTipo||'—')} · enviada ${d.despachoData?UI.fmtDate(d.despachoData):'—'}
-        </div>
+    UI.openModal(`Registrar Despacho — ${cfg.label}`, `
+      <div style="background:${cfg.bg};border:1px solid ${cfg.border};border-radius:8px;padding:10px 14px;margin-bottom:14px">
+        <div style="font-weight:700;color:${cfg.text}">${cfg.ico} ${cfg.label}</div>
+        <div style="font-size:13px;color:#374151;margin-top:2px">${UI.esc(d.titulo)}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px">${UI.esc(dd.tipo||'—')} · enviada ${dd.data?UI.fmtDate(dd.data):'—'}</div>
       </div>
 
       <div class="field">
@@ -157,29 +237,29 @@ const Despacho = (() => {
 
       <div class="field">
         <label>Deliberações</label>
-        <textarea id="desp-delib" rows="3" placeholder="O que foi decidido, encaminhado ou orientado pelo diretor…"></textarea>
+        <textarea id="desp-delib" rows="3" placeholder="O que foi decidido, encaminhado ou orientado…"></textarea>
       </div>
 
       <div class="field">
         <label>Observações</label>
-        <textarea id="desp-obs" rows="2" placeholder="Pontos de atenção, próximos passos, contexto adicional…"></textarea>
+        <textarea id="desp-obs" rows="2" placeholder="Próximos passos, contexto adicional…"></textarea>
       </div>
 
       <div class="field">
-        <label style="font-weight:700;color:var(--green-900)">Esta pauta está finalizada?</label>
+        <label style="font-weight:700;color:${cfg.text}">Esta pauta está finalizada com a ${cfg.label}?</label>
         <div style="display:flex;gap:10px;margin-top:6px">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
-            <input type="radio" name="desp-fin" value="sim" id="desp-fin-sim"> Sim — mover para Finalizado
+            <input type="radio" name="desp-fin" value="sim" id="desp-fin-sim"> Sim — Finalizado
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
-            <input type="radio" name="desp-fin" value="nao" id="desp-fin-nao" checked> Não — continua em andamento
+            <input type="radio" name="desp-fin" value="nao" id="desp-fin-nao" checked> Não — Em andamento
           </label>
         </div>
       </div>
 
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
         <button class="btn btn-ghost" onclick="UI.closeModal()">Cancelar</button>
-        <button class="btn btn-primary" id="desp-salvar">Salvar Registro</button>
+        <button class="btn btn-primary" id="desp-salvar" style="background:${cfg.text}">Salvar Registro</button>
       </div>
     `);
 
@@ -190,40 +270,55 @@ const Despacho = (() => {
         const obs       = document.getElementById('desp-obs')?.value.trim();
         const finalizado = document.getElementById('desp-fin-sim')?.checked;
 
-        if(!data){ UI.toast('Informe a data do despacho.','⚠'); return; }
+        if (!data) { UI.toast('Informe a data do despacho.', '⚠'); return; }
 
-        // Adiciona ao histórico
-        const registro = { data, deliberacoes: delib, obs, finalizado };
-        const registros = d.despachoRegistros || [];
-        registros.push(registro);
+        const ddAtual = getDirData(d, dir) || { tipo: '', data: '', realizado: false, finalizado: false, registros: [], alinhada: false, alinhadaData: '' };
+        const registros = [...(ddAtual.registros || [])];
+        registros.push({ data, deliberacoes: delib, obs, finalizado });
 
-        // Atualiza status
-        d.despachoRegistros  = registros;
-        d.despachoRealizado  = true;
-        d.despachoFinalizado = finalizado;
-        d.despachoAlinhada   = finalizado; // compatibilidade com badge do nav
-        d.despachoAlinhadaData = finalizado ? data : null;
+        const novoDD = {
+          ...ddAtual,
+          realizado:    true,
+          finalizado:   finalizado,
+          alinhada:     finalizado,
+          alinhadaData: finalizado ? data : null,
+          registros,
+        };
+
+        if (!d.despachoDirs) d.despachoDirs = {};
+        d.despachoDirs[dir] = novoDD;
+
+        // Sync campos antigos para compatibilidade (Executiva)
+        if (dir === 'Executiva') {
+          d.despachoRealizado  = true;
+          d.despachoFinalizado = finalizado;
+          d.despachoAlinhada   = finalizado;
+          d.despachoAlinhadaData = finalizado ? data : null;
+          d.despachoRegistros  = registros;
+        }
 
         Store.upsert('demandas', d);
         UI.closeModal();
         filtroAtual = finalizado ? 'finalizado' : 'andamento';
+        dirAtual = dir;
         App.go('despacho');
-        UI.toast(finalizado ? 'Pauta finalizada e registrada! ✅' : 'Despacho registrado — pauta em andamento 🔄');
+        UI.toast(finalizado ? 'Pauta finalizada! ✅' : 'Despacho registrado 🔄');
       });
     }, 50);
   }
 
-  /* ── Geração de PDF — abre modal de seleção de status ── */
-  function gerarPDF(){
-    const lista = pautas();
-    if(!lista.length){ UI.toast('Não há pautas para imprimir','⚠'); return; }
+  /* ── PDF ── */
+  function gerarPDF() {
+    const lista = pautasDe(dirAtual);
+    if (!lista.length) { UI.toast('Nenhuma pauta para esta diretoria', '⚠'); return; }
 
-    const pend = lista.filter(d => status(d) === 'pendente').length;
-    const anda = lista.filter(d => status(d) === 'andamento').length;
-    const fin  = lista.filter(d => status(d) === 'finalizado').length;
+    const pend = lista.filter(d => status(d, dirAtual) === 'pendente').length;
+    const anda = lista.filter(d => status(d, dirAtual) === 'andamento').length;
+    const fin  = lista.filter(d => status(d, dirAtual) === 'finalizado').length;
+    const cfg  = DIRS[dirAtual];
 
-    UI.openModal('Selecionar pautas para imprimir', `
-      <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Marque quais status deseja incluir na impressão:</p>
+    UI.openModal(`Relatório — ${cfg.label}`, `
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Selecione os status para incluir no relatório:</p>
       <div style="display:flex;flex-direction:column;gap:12px">
         <label class="desp-pdf-op">
           <input type="checkbox" id="pdf-pend" checked ${pend===0?'disabled':''}>
@@ -249,40 +344,35 @@ const Despacho = (() => {
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
         <button class="btn btn-ghost" onclick="UI.closeModal()">Cancelar</button>
-        <button class="btn btn-primary" id="pdf-confirmar">🖨️ Imprimir</button>
+        <button class="btn btn-primary" id="pdf-confirmar" style="background:${cfg.text}">🖨️ Imprimir</button>
       </div>
     `);
 
     setTimeout(() => {
       document.getElementById('pdf-confirmar')?.addEventListener('click', () => {
         const selecionados = [];
-        if(document.getElementById('pdf-pend')?.checked) selecionados.push('pendente');
-        if(document.getElementById('pdf-anda')?.checked) selecionados.push('andamento');
-        if(document.getElementById('pdf-fin')?.checked)  selecionados.push('finalizado');
-        if(!selecionados.length){ UI.toast('Selecione ao menos um status.','⚠'); return; }
+        if (document.getElementById('pdf-pend')?.checked) selecionados.push('pendente');
+        if (document.getElementById('pdf-anda')?.checked) selecionados.push('andamento');
+        if (document.getElementById('pdf-fin')?.checked)  selecionados.push('finalizado');
+        if (!selecionados.length) { UI.toast('Selecione ao menos um status.', '⚠'); return; }
         UI.closeModal();
-        imprimirPDF(lista.filter(d => selecionados.includes(status(d))), selecionados);
+        imprimirPDF(lista.filter(d => selecionados.includes(status(d, dirAtual))), selecionados, dirAtual);
       });
     }, 50);
   }
 
-  function imprimirPDF(lista, selecionados){
+  function imprimirPDF(lista, selecionados, dir) {
+    const cfg  = DIRS[dir];
     const hoje = UI.fmtDate(new Date().toISOString());
     const stNomes = { pendente:'A despachar', andamento:'Em andamento', finalizado:'Finalizado' };
-    const titulo = selecionados.length === 3
-      ? 'Todas as pautas'
-      : selecionados.map(s => stNomes[s]).join(' + ');
+    const titulo = selecionados.length === 3 ? 'Todas as pautas' : selecionados.map(s => stNomes[s]).join(' + ');
 
-    /* Formata descrição: preserva quebras de linha e marcadores */
-    function fmtDescricao(txt){
-      if(!txt) return '';
+    function fmtDescricao(txt) {
+      if (!txt) return '';
       const linhas = txt.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
       const temLista = linhas.some(l => /^[-•*·\d+\.]/.test(l));
-      if(temLista){
-        const itens = linhas.map(l => {
-          const limpo = l.replace(/^[-•*·]\s*/,'').replace(/^\d+[\.\)]\s*/,'');
-          return `<li>${esc(limpo)}</li>`;
-        }).join('');
+      if (temLista) {
+        const itens = linhas.map(l => `<li>${esc(l.replace(/^[-•*·]\s*/,'').replace(/^\d+[\.\)]\s*/,''))}</li>`).join('');
         return `<ul class="desc-lista">${itens}</ul>`;
       }
       return `<div class="obs">${linhas.map(l => esc(l)).join('<br>')}</div>`;
@@ -290,15 +380,15 @@ const Despacho = (() => {
 
     let num = 0;
     const secoes = selecionados.map(st => {
-      const items = lista.filter(d => status(d) === st);
-      if(!items.length) return '';
+      const items = lista.filter(d => status(d, dir) === st);
+      if (!items.length) return '';
       const stLabel = { pendente:'⏳ A despachar', andamento:'🔄 Em andamento', finalizado:'✅ Finalizado' }[st];
       const rows = items.map(d => {
         num++;
-        const c = d.contatoId ? Store.byId('contatos', d.contatoId) : null;
-        const p = d.projetoId ? Store.byId('projetos', d.projetoId) : null;
-        const registros = d.despachoRegistros || [];
-        const histHtml = registros.map(r => `
+        const dd = getDirData(d, dir) || {};
+        const c  = d.contatoId ? Store.byId('contatos', d.contatoId) : null;
+        const p  = d.projetoId ? Store.byId('projetos', d.projetoId) : null;
+        const histHtml = (dd.registros || []).map(r => `
           <div class="hist-bloco">
             <div class="hist-data">Despacho em ${esc(r.data)}</div>
             ${r.deliberacoes ? fmtDescricao(r.deliberacoes) : ''}
@@ -313,41 +403,39 @@ const Despacho = (() => {
             ${p ? `<div class="meta">🎯 ${esc(p.nome)}</div>` : ''}
             ${histHtml}
           </td>
-          <td style="white-space:nowrap">${esc(d.despachoTipo||'—')}</td>
+          <td style="white-space:nowrap">${esc(dd.tipo||'—')}</td>
         </tr>`;
       }).join('');
-      return `
-        <tr class="st-header">
-          <td colspan="3" class="st-label">${stLabel}</td>
-        </tr>
-        ${rows}`;
+      return `<tr class="st-header"><td colspan="3" class="st-label">${stLabel}</td></tr>${rows}`;
     }).join('');
 
+    const corPrincipal = cfg.text;
+    const corBg = cfg.bg;
+
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
-      <title>Pauta de Despacho — ${hoje}</title>
+      <title>Pauta de Despacho — ${cfg.label} — ${hoje}</title>
       <style>
         *{font-family:Georgia,'Times New Roman',serif;color:#1a201c;box-sizing:border-box}
         body{margin:40px;font-size:12px}
-        h1{font-size:18px;color:#8a3a5e;margin:0 0 2px}
+        h1{font-size:18px;color:${corPrincipal};margin:0 0 2px}
         .sub{color:#6b746d;font-size:11px;margin-bottom:4px}
-        .subtit{color:#8a3a5e;font-size:12px;font-style:italic;margin-bottom:14px}
-        .quote{font-style:italic;color:#b14a78;border-left:3px solid #c9a44c;padding:4px 12px;margin:12px 0 16px;font-size:11px}
+        .subtit{color:${corPrincipal};font-size:12px;font-style:italic;margin-bottom:14px}
+        .quote{font-style:italic;color:${corPrincipal};border-left:3px solid #c9a44c;padding:4px 12px;margin:12px 0 16px;font-size:11px}
         table{width:100%;border-collapse:collapse}
-        th,td{border:1px solid #ecccdb;padding:8px 10px;vertical-align:top;text-align:left}
-        th{background:#fbe9f0;color:#8a3a5e;font-size:11px}
-        .st-header td{background:#f5dce8;color:#6f2f4d;font-weight:700;font-size:12px;padding:6px 10px;border-top:2px solid #c9a44c}
+        th,td{border:1px solid #e5e7eb;padding:8px 10px;vertical-align:top;text-align:left}
+        th{background:${corBg};color:${corPrincipal};font-size:11px}
+        .st-header td{background:${corBg};color:${corPrincipal};font-weight:700;font-size:12px;padding:6px 10px;border-top:2px solid #c9a44c}
         .num{width:26px;text-align:center;color:#6b746d}
         .obs{color:#3a3a3a;font-size:11px;margin-top:5px;font-family:Arial,sans-serif;line-height:1.55}
         .obs-it{font-style:italic;color:#5a5a5a}
         .desc-lista{margin:5px 0 4px 16px;padding:0;font-family:Arial,sans-serif;font-size:11px;color:#3a3a3a;line-height:1.6}
-        .desc-lista li{margin-bottom:2px}
         .meta{color:#6b746d;font-size:10.5px;margin-top:3px;font-family:Arial,sans-serif}
-        .hist-bloco{margin-top:8px;padding:6px 8px;background:#fdf7fa;border-left:3px solid #d4a0b8;border-radius:3px}
-        .hist-data{font-size:10px;color:#8a3a5e;font-weight:700;margin-bottom:3px;font-family:Arial,sans-serif}
+        .hist-bloco{margin-top:8px;padding:6px 8px;background:#f9fafb;border-left:3px solid ${cfg.border};border-radius:3px}
+        .hist-data{font-size:10px;color:${corPrincipal};font-weight:700;margin-bottom:3px;font-family:Arial,sans-serif}
         .foot{margin-top:20px;font-size:10px;color:#9aa39c;border-top:1px solid #e2e6e3;padding-top:8px}
         @media print{body{margin:15mm 18mm};page-break-inside:avoid}
       </style></head><body>
-      <h1>Pauta de Despacho — Diretoria Executiva</h1>
+      <h1>Pauta de Despacho — ${cfg.label}</h1>
       <div class="sub">Gerência de Relações Institucionais · Araújo Jorge — Hospital de Câncer · ${hoje}</div>
       <div class="subtit">${titulo}</div>
       <div class="quote">"Captação não é pedido. É construção de rede."</div>
@@ -359,13 +447,43 @@ const Despacho = (() => {
       <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>
       </body></html>`;
 
-    const w = window.open('','_blank');
-    if(!w){ UI.toast('Permita pop-ups para gerar o PDF','⚠'); return; }
+    const w = window.open('', '_blank');
+    if (!w) { UI.toast('Permita pop-ups para gerar o PDF', '⚠'); return; }
     w.document.write(html); w.document.close();
   }
 
   const esc = (s) => String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  function kpi(ico,cls,val,lab){ return `<div class="kpi ${cls}"><div class="kpi-ico">${ico}</div><div class="kpi-val">${val}</div><div class="kpi-lab">${lab}</div></div>`; }
+  function kpi(ico, cls, val, lab) { return `<div class="kpi ${cls}"><div class="kpi-ico">${ico}</div><div class="kpi-val">${val}</div><div class="kpi-lab">${lab}</div></div>`; }
 
-  return { render, afterRender, pautas };
+  /* API pública */
+  return {
+    render, afterRender,
+    pautas: () => pautasDe(dirAtual),
+    getDirData,
+    DIRS,
+    DIR_KEYS,
+    /* Enviar demanda para uma diretoria (chamado pelo módulo Demandas) */
+    enviarParaDiretoria(d, dir, tipo) {
+      if (!d.despachoDirs) d.despachoDirs = {};
+      d.despachoDirs[dir] = {
+        tipo, data: new Date().toISOString().slice(0,10),
+        realizado: false, finalizado: false, registros: [],
+        alinhada: false, alinhadaData: '',
+      };
+      // sync campos antigos
+      if (dir === 'Executiva') {
+        d.despacho = true; d.despachoTipo = tipo;
+        d.despachoData = d.despachoDirs[dir].data;
+        d.despachoAlinhada = false; d.despachoFinalizado = false;
+        d.despachoRealizado = false; d.despachoRegistros = [];
+      }
+    },
+    retirarDeDiretoria(d, dir) {
+      if (d.despachoDirs) delete d.despachoDirs[dir];
+      if (dir === 'Executiva') {
+        d.despacho = false; d.despachoAlinhada = false;
+        d.despachoFinalizado = false; d.despachoRealizado = false;
+      }
+    },
+  };
 })();

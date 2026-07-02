@@ -186,20 +186,31 @@ const Demandas = (() => {
       ${p?`<div class="info-item"><div class="il">Projeto</div><div class="iv" style="cursor:pointer;color:var(--green-700)" data-goproj="${p.id}">${UI.esc(p.nome)} →</div></div>`:''}
     </div>
 
-    <!-- Despacho da Diretoria Executiva -->
+    <!-- Despacho com as Diretorias -->
     <div class="dem-section">
-      <h4>🗣️ Despacho com a Diretoria Executiva</h4>
-      ${d.despacho ? `
-        <div class="obs-box" style="background:var(--green-050);border-color:var(--green-500)">
-          <strong>Em pauta de despacho</strong> · Tipo: <b>${UI.esc(d.despachoTipo||'—')}</b> · Enviada em ${d.despachoData?UI.fmtDate(d.despachoData):'—'}
-          ${d.despachoAlinhada?`<br/>✅ Pauta alinhada com o diretor em ${d.despachoAlinhadaData?UI.fmtDate(d.despachoAlinhadaData):''}`:'<br/>⏳ Aguardando despacho semanal'}
-        </div>
-        <div class="ai-actions">
-          <button class="btn btn-ghost btn-sm" data-despacho="ver">Ver lista de pautas</button>
-          <button class="btn btn-ghost btn-sm" data-despacho="remover">Retirar da pauta</button>
-        </div>` : `
-        <p class="muted" style="font-size:12.5px;margin-bottom:8px">Envie esta demanda para a sua lista de pautas do despacho semanal com o diretor executivo.</p>
-        <button class="btn btn-gold btn-sm" data-despacho="enviar">📤 Enviar para despacho da Diretoria Executiva</button>`}
+      <h4>🗣️ Despacho com as Diretorias</h4>
+      <div class="desp-dirs-wrap">
+        ${Despacho.DIR_KEYS.map(dir => {
+          const cfg = Despacho.DIRS[dir];
+          const dd  = Despacho.getDirData(d, dir);
+          const st  = dd ? (dd.finalizado ? 'finalizado' : dd.realizado ? 'andamento' : 'pendente') : null;
+          const stLabel = { pendente:'⏳ A despachar', andamento:'🔄 Em andamento', finalizado:'✅ Finalizado' };
+          return `
+          <div class="desp-dir-box" style="border-color:${cfg.border};background:${dd?cfg.bg:'#f9fafb'}">
+            <div class="desp-dir-box-header" style="color:${cfg.text}">${cfg.ico} ${cfg.label}</div>
+            ${dd ? `
+              <div class="desp-dir-box-status">${stLabel[st]||''}</div>
+              <div class="desp-dir-box-meta">Tipo: <b>${UI.esc(dd.tipo||'—')}</b> · ${dd.data?UI.fmtDate(dd.data):'—'}</div>
+              <div class="desp-dir-box-actions">
+                <button class="btn btn-ghost btn-sm" data-despacho-ver="${dir}">Ver pautas</button>
+                <button class="btn btn-ghost btn-sm" data-despacho-rem="${dir}">Retirar</button>
+              </div>` : `
+              <div class="desp-dir-box-meta" style="color:#9ca3af;font-size:12px">Não enviada para esta diretoria</div>
+              <button class="btn btn-sm desp-dir-enviar" data-despacho-env="${dir}"
+                style="background:${cfg.text};color:#fff;margin-top:6px">📤 Enviar</button>`}
+          </div>`;
+        }).join('')}
+      </div>
     </div>
     ${d.descricao?`<div class="dem-section"><h4>📝 Descrição</h4><div style="font-size:13.5px;color:var(--gray-700);line-height:1.6">${UI.esc(d.descricao)}</div></div>`:''}
 
@@ -273,28 +284,45 @@ const Demandas = (() => {
     };
     document.getElementById('coment-in').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('coment-add').click(); });
 
-    // despacho
-    document.querySelectorAll('[data-despacho]').forEach(b=>b.onclick=()=>{
-      const acao=b.dataset.despacho;
-      if(acao==='enviar'){
-        UI.openModal('Enviar para despacho',`
-          <div class="field"><label>Finalidade do despacho</label>
-            <select id="desp-tipo">${DESPACHO_TIPOS.map(t=>`<option>${t}</option>`).join('')}</select></div>
-          <p class="muted" style="font-size:12px;margin-bottom:14px">A pauta entrará na lista do seu despacho semanal com o diretor executivo.</p>
-          <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button class="btn btn-ghost" onclick="UI.closeModal()">Cancelar</button>
-            <button class="btn btn-gold" id="desp-ok">Adicionar à pauta</button>
-          </div>`);
-        document.getElementById('desp-ok').onclick=()=>{
-          d.despacho=true; d.despachoTipo=document.getElementById('desp-tipo').value;
-          d.despachoData=new Date().toISOString().slice(0,10); d.despachoAlinhada=false;
-          Store.upsert('demandas',d); UI.closeModal(); UI.toast('Adicionada à pauta de despacho ✓'); refreshDetail();
-        };
-      } else if(acao==='remover'){
-        d.despacho=false; d.despachoAlinhada=false; Store.upsert('demandas',d); UI.toast('Retirada da pauta'); refreshDetail();
-      } else if(acao==='ver'){
-        UI.closeModal(); App.go('despacho');
-      }
+    // despacho — enviar para uma diretoria
+    document.querySelectorAll('[data-despacho-env]').forEach(b => b.onclick = () => {
+      const dir = b.dataset.despachoEnv;
+      const cfg = Despacho.DIRS[dir];
+      UI.openModal(`Enviar para ${cfg.label}`, `
+        <div style="background:${cfg.bg};border:1px solid ${cfg.border};border-radius:8px;padding:10px 14px;margin-bottom:14px">
+          <div style="font-weight:700;color:${cfg.text}">${cfg.ico} ${cfg.label}</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">${UI.esc(d.titulo)}</div>
+        </div>
+        <div class="field"><label>Finalidade do despacho</label>
+          <select id="desp-tipo">${DESPACHO_TIPOS.map(t=>`<option>${t}</option>`).join('')}</select></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+          <button class="btn btn-ghost" onclick="UI.closeModal()">Cancelar</button>
+          <button class="btn btn-primary" id="desp-ok" style="background:${cfg.text}">Adicionar à pauta</button>
+        </div>`);
+      document.getElementById('desp-ok').onclick = () => {
+        Despacho.enviarParaDiretoria(d, dir, document.getElementById('desp-tipo').value);
+        Store.upsert('demandas', d);
+        UI.closeModal();
+        UI.toast(`Adicionada à pauta da ${cfg.label} ✓`);
+        refreshDetail();
+      };
+    });
+
+    // despacho — ver lista
+    document.querySelectorAll('[data-despacho-ver]').forEach(b => b.onclick = () => {
+      UI.closeModal(); App.go('despacho');
+    });
+
+    // despacho — retirar de uma diretoria
+    document.querySelectorAll('[data-despacho-rem]').forEach(b => b.onclick = () => {
+      const dir = b.dataset.despachoRem;
+      const cfg = Despacho.DIRS[dir];
+      UI.confirmAction(`Retirar esta pauta da ${cfg.label}?`, () => {
+        Despacho.retirarDeDiretoria(d, dir);
+        Store.upsert('demandas', d);
+        UI.toast(`Retirada da pauta da ${cfg.label}`);
+        refreshDetail();
+      });
     });
 
     // geração automática

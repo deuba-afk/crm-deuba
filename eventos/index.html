@@ -453,7 +453,7 @@
     if(!Array.isArray(e.cronologia)) e.cronologia=[];
     e.info = Object.assign({}, base.info, (e.info&&!e.info.fixed)?e.info:{nome:e.name});
     e.vendaCfg = Object.assign({}, base.vendaCfg, e.vendaCfg||{});
-    ['chefs','assessorias','voluntarios','vendas','apoios','vendasDiarias','circulacao','contrapartidas','patrocinios','despesas','receitas','comTv','comPlano','comImpulso','releases','envios','publicacoes','influenciadores','checklist','checklistBlocos','checklistAudit','reunioes','agendaDiaria','visitas']
+    ['chefs','assessorias','voluntarios','vendas','apoios','vendasDiarias','circulacao','contrapartidas','patrocinios','despesas','receitas','comTv','comPlano','comImpulso','releases','envios','publicacoes','influenciadores','checklist','checklistBlocos','checklistAudit','reunioes','agendaDiaria','visitas','ocorrencias','escalaTrab','contatosOp']
       .forEach(k=>{ if(!Array.isArray(e[k])) e[k]=[]; });
     e.apoios.forEach(a=>{ if(!Array.isArray(a.entregas))a.entregas=[]; if(!Array.isArray(a.prestacoes))a.prestacoes=[]; });
     e.despesas.forEach(d=>{ if(d.cat!=null&&d.categoria==null)d.categoria=d.cat; if(d.desc!=null&&d.descricao==null)d.descricao=d.desc; if(!d.situacao)d.situacao='Orçado'; if(!d.anexos)d.anexos={}; });
@@ -483,7 +483,8 @@
     {id:'comunicacao',label:'Comunicação',icon:'megaphone'},
     {id:'checklist',label:'Checklist',icon:'list-checks'},
     {id:'agenda',label:'Agenda',icon:'calendar-days'},
-    {id:'prestacao',label:'Prestação de Contas',icon:'file-bar-chart'}
+    {id:'prestacao',label:'Prestação de Contas',icon:'file-bar-chart'},
+    {id:'realizacao',label:'Realização do evento',icon:'siren'}
   ];
 
   function isRisoto(e){ return /risoto/i.test((e&&(e.grupo||e.name))||''); }
@@ -499,7 +500,7 @@
       nav.innerHTML=`<button class="nav-item active" onclick="backToGroups()"><i data-lucide="calendar-heart"></i>Eventos</button>`;
     } else {
       nav.innerHTML=`<button class="nav-item" onclick="exitEvent()"><i data-lucide="arrow-left"></i>Todos os Eventos</button>`+
-        modulesFor(currentEvent).map(m=>`<button class="nav-item ${currentModule===m.id?'active':''}" onclick="go('${m.id}')"><i data-lucide="${m.icon}"></i>${m.label}</button>`).join('');
+        modulesFor(currentEvent).map(m=>`<button class="nav-item ${m.id==='realizacao'?'nav-accent':''} ${currentModule===m.id?'active':''}" onclick="go('${m.id}')"><i data-lucide="${m.icon}"></i>${m.label}</button>`).join('');
     }
     icons();
   }
@@ -513,7 +514,7 @@
     if(currentEvent){ tbe.textContent=currentEvent.name; tbe.classList.remove('hidden'); }
     else tbe.classList.add('hidden');
     renderNav();
-    const titles={home:'Eventos',dashboard:'Dashboard',info:'Informações do Evento',vendas:'Vendas de Ingressos',chefs:'Chefs',assessorias:'Assessorias',voluntarios:'Voluntários',patrocinios:'Patrocínios',financeiro:'Financeiro',comunicacao:'Comunicação',checklist:'Checklist',agenda:'Agenda',visitas:'Visita Institucional',prestacao:'Prestação de Contas'};
+    const titles={home:'Eventos',dashboard:'Dashboard',info:'Informações do Evento',vendas:'Vendas de Ingressos',chefs:'Chefs',assessorias:'Assessorias',voluntarios:'Voluntários',patrocinios:'Patrocínios',financeiro:'Financeiro',comunicacao:'Comunicação',checklist:'Checklist',agenda:'Agenda',visitas:'Visita Institucional',prestacao:'Prestação de Contas',realizacao:'Realização do evento'};
     $('#topbar-title').textContent=titles[mod]||mod;
     VIEWS[mod] ? VIEWS[mod]() : $('#view').innerHTML='<div class="empty">Módulo em construção.</div>';
     icons();
@@ -4000,6 +4001,245 @@
   })();
   </script>
 
+  <style id="realizacao-css">
+    .nav-accent{color:#E8620C!important}
+    .nav-accent i{color:#E8620C!important}
+    .nav-accent.active{background:rgba(232,98,12,.16)!important}
+    .rtabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+    .rtab{padding:9px 16px;border-radius:10px;border:1px solid var(--primary-soft);background:#fff;color:var(--primary-dark);font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:7px}
+    .rtab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .rtab i{width:16px;height:16px}
+    .oc-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .oc-form .full{grid-column:1/-1}
+    .opt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 14px;margin-top:6px}
+    .opt-grid.two{grid-template-columns:1fr 1fr}
+    .opt{display:flex;align-items:center;gap:7px;font-size:13.5px;color:#444}
+    .esc-table{width:100%;border-collapse:collapse;font-size:14px}
+    .esc-table th{background:var(--primary);color:#fff;text-align:left;padding:9px 10px;font-size:12px;letter-spacing:.3px;text-transform:uppercase}
+    .esc-table td{border-bottom:1px solid #eee;padding:9px 10px;vertical-align:top}
+    .esc-table tr:nth-child(even) td{background:#FFF8F2}
+    .tag{display:inline-block;background:#FFF1E6;border:1px solid #FBC79E;color:#B4490A;border-radius:8px;padding:2px 8px;font-size:12px;margin:2px 4px 2px 0}
+    .op-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid #eee;border-radius:12px;margin-bottom:8px}
+    .op-row .nm{font-weight:600;color:#1c1c1c}
+    .op-row .fn{font-size:13px;color:#888}
+    .icon-btn{background:transparent;border:0;cursor:pointer;color:#999;padding:6px;border-radius:8px}
+    .icon-btn:hover{background:#f3f3f3;color:var(--primary)}
+    .icon-btn.wa{color:#25D366}
+    @media(max-width:720px){.oc-form{grid-template-columns:1fr}.opt-grid{grid-template-columns:1fr 1fr}}
+  </style>
+  <script id="app-realizacao">
+  (function(){
+    const OC_TIPOS=['Atendimento médico','Acidente','Queda','Incêndio','Vazamento de gás','Falta de energia','Problema elétrico','Problema hidráulico','Limpeza','Resíduos','Segurança','Tumulto','Criança perdida','Pessoa desaparecida','Objeto perdido','Dano ao patrimônio','Falha em equipamento'];
+    const OC_PROVS=['Líder da área informado','Solicitação de reparo solicitada','Autoridade comunicada','Solicitação de troca de equipamento solicitada'];
+    const OC_SEV=['Baixa','Média','Alta','Crítica'];
+    const OC_SIT=['Aberta','Em andamento','Resolvida'];
+    const SIT_BADGE={'Aberta':'b-amber','Em andamento':'b-blue','Resolvida':'b-green'};
+    const ESCALA_SEED=[['Montagem','Deuba Assunção, Jurdan Vicente e Marta Tiffany','Amanda Thereza'],['Preparação do caldo','Deuba Assunção e Marta Tiffany',''],['Entrega dos Kits','Marta Tiffany','Adriane Rodrigues, Isabel, Sione'],['Entrega dos postos de trabalho','Marta Tiffany','Jurdan Vicente'],['Camarim','Marta Tiffany','Isabel'],['Palco','Deuba Assunção','Marta Tiffany, Isabel'],['Cozinha','Jurdan Vicente','Cláudia Tereza, Nelson Nunes, Segurança 1, Segurança 2'],['Portaria','Marta Tiffany','Lara, Mônica, Miriam Abadia, Ana Paula, Segurança'],['Salão (Ronda)','Jurdan Vicente','Segurança'],['Venda de Ingressos','Marta Tiffany','Débora'],['Bilheteria','Marta Tiffany','Cícero, Sueli, Patrícia, Sione, Ana Navarro'],['Estação de Risoto','Adriane Rodrigues','Deusimar, Eliane Mármore, Edna Pereira, Adelson, Josefa da Silva, Claudinei Dias'],['Reposição','Adriane Rodrigues','Vanessa, Luzia Cordeiro'],['Orientação das Estações','Adriane Rodrigues','Edna Ribeiro'],['Limpeza Salão','Jurdan Vicente','Maria Divina, a definir, a definir'],['Limpeza Banheiro','Jurdan Vicente','a definir, a definir'],['Limpeza Cozinha','Jurdan Vicente','a definir'],['Central de Operações','Marta Tiffany','Amanda Thereza, Maíra Silva, Luanna Souza'],['Comunicação - Fotografia','Deuba Assunção','Matheus, Allison'],['Comunicação - Video Maker','Deuba Assunção','Gustavo'],['Comunicação - Redes Sociais','Deuba Assunção','Naiane'],['Comunicação - Assessoria de Imprensa','Deuba Assunção','Caroline'],['Desmontagem','Jurdan Vicente e Marta Tiffany','Chapa, Chapa, Chapa, Chapa'],['Pós evento','Marta Tiffany','Empresas contratadas']];
+    const RADIOS_SEED=[['Rádio 01','Deuba Assunção'],['Rádio 02','Marta Tiffany'],['Rádio 03','Jurdan Vicente'],['Rádio 04','Adriane Rodrigues'],['Rádio 05','Central de Operações'],['Rádio 06','Bilheteria'],['Rádio 07','Carolina'],['Rádio 08','Isabel'],['Rádio 09','Naiane'],['Rádio 10','Reserva'],['Rádio 11','Reserva'],['Rádio 12','Reserva']];
+    const CONT_SEED=[['Deuba Assunção','Coordenação Geral','(62) 98578-8797'],['Amanda Thereza','Central de Operações','(62) 99564-9951'],['Maíra Silva','Central de Operações',''],['Luanna Souza','Central de Operações',''],['Marta Tiffany','Bilheteria e Palco',''],['Jurdan Vicente','Apoio Operacional / Cozinha',''],['Adriane Rodrigues','Voluntários / Estações',''],['Adelson da Cunha Bastos','Voluntário',''],['Ana Navarro','Voluntário',''],['Cláudia Tereza da Silva Felipe','Voluntário',''],['Nelson Nunes','Cozinha',''],['Cícero','Bilheteria',''],['Sueli','Bilheteria',''],['Patrícia','Bilheteria',''],['Sione','Bilheteria / Kits',''],['Débora','Venda de Ingressos',''],['Isabel','Camarim / Kits',''],['Matheus','Comunicação - Fotografia',''],['Gustavo','Comunicação - Vídeo',''],['Caroline','Assessoria de Imprensa','']];
+
+    let realTab='ocorrencias';
+    const isRis=e=>/risoto/i.test((e&&(e.grupo||e.name))||'');
+    const digits=s=>String(s||'').replace(/\D/g,'');
+    function seed(e){
+      if(!Array.isArray(e.ocorrencias)) e.ocorrencias=[];
+      if(!Array.isArray(e.escalaTrab)) e.escalaTrab=[];
+      if(!Array.isArray(e.contatosOp)) e.contatosOp=[];
+      if(!Array.isArray(e.radios)) e.radios=[];
+      if(isRis(e)){
+        if(!e.escalaTrab.length) e.escalaTrab=ESCALA_SEED.map(r=>({id:uid(),area:r[0],lider:r[1],equipe:r[2]}));
+        if(!e.radios.length) e.radios=RADIOS_SEED.map(r=>({id:uid(),radio:r[0],resp:r[1]}));
+        if(!e.contatosOp.length) e.contatosOp=CONT_SEED.map(r=>({id:uid(),nome:r[0],funcao:r[1],telefone:r[2]}));
+        saveEv();
+      }
+    }
+
+    VIEWS.realizacao=function(){
+      const e=ev(); if(!e) return; seed(e);
+      const tabs=[['ocorrencias','Registro de Ocorrências','siren'],['escala','Escala de Trabalho','table-2'],['contatos','Contatos','contact']];
+      let body = realTab==='ocorrencias'?renderOcorr(e): realTab==='escala'?renderEscala(e): renderContatos(e);
+      $('#view').innerHTML=`
+        <div class="rtabs">
+          ${tabs.map(t=>`<button class="rtab ${realTab===t[0]?'active':''}" onclick="realGo('${t[0]}')"><i data-lucide="${t[2]}"></i>${t[1]}</button>`).join('')}
+        </div>
+        ${body}`;
+      icons();
+    };
+    window.realGo=t=>{ realTab=t; VIEWS.realizacao(); };
+
+    /* ================= OCORRÊNCIAS ================= */
+    function renderOcorr(e){
+      const abertas=e.ocorrencias.filter(o=>o.situacao!=='Resolvida');
+      const andamento=e.ocorrencias.filter(o=>o.situacao==='Em andamento').length;
+      const resolv=e.ocorrencias.filter(o=>o.situacao==='Resolvida').length;
+      const today=new Date().toISOString().slice(0,10);
+      return `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:6px">
+        <div><h2 style="margin:0;color:var(--primary-dark)">Registro de Ocorrências</h2>
+        <div style="color:#888;font-size:13px">3º Risoto Solidário · Sabores do Cerrado</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="ocImport()"><i data-lucide="upload"></i>Importar</button>
+          <button class="btn btn-ghost btn-sm" onclick="ocPrint()"><i data-lucide="printer"></i>Imprimir</button>
+          <button class="btn btn-ghost btn-sm" onclick="ocExcel()"><i data-lucide="file-spreadsheet"></i>Relatório Excel</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:18px;align-items:start" class="oc-layout">
+        <div class="card">
+          <div class="card-head"><div style="display:flex;align-items:center;gap:10px"><span style="width:36px;height:36px;border-radius:9px;background:#FFF1E6;display:flex;align-items:center;justify-content:center"><i data-lucide="clipboard-list" style="color:var(--primary)"></i></span>
+          <div><h3 style="margin:0">FORMULÁRIO DE REGISTRO DE OCORRÊNCIAS</h3><div style="font-size:12.5px;color:#999">Preencha todos os campos de forma objetiva e legível.</div></div></div></div>
+          <div class="oc-form">
+            <div class="field"><label>Data</label><input type="date" id="oc-data" value="${today}"/></div>
+            <div class="field"><label>Horário</label><input type="time" id="oc-hora" value="${new Date().toTimeString().slice(0,5)}"/></div>
+            <div class="field full"><label>Comunicante</label><input id="oc-com" placeholder="Quem está comunicando"/></div>
+            <div class="field full"><label>Local</label><input id="oc-local" placeholder="Local da ocorrência (ex.: Bilheteria, Cozinha, Salão)"/></div>
+            <div class="full"><label style="font-weight:600;font-size:13px;color:#444">Tipo de ocorrência</label>
+              <div class="opt-grid">${OC_TIPOS.map(t=>`<label class="opt"><input type="radio" name="oc-tipo" value="${esc(t)}"/> ${esc(t)}</label>`).join('')}
+              <label class="opt" style="grid-column:1/-1"><input type="radio" name="oc-tipo" value="__outro"/> Outro: <input id="oc-tipoOutro" style="flex:1;border:0;border-bottom:1px solid #ddd;padding:2px 4px" placeholder="descreva"/></label></div>
+            </div>
+            <div class="field full"><label>Descrição da ocorrência</label><textarea id="oc-desc" rows="3" placeholder="Descreva o que aconteceu"></textarea></div>
+            <div class="full"><label style="font-weight:600;font-size:13px;color:#444">Providências adotadas</label>
+              <div class="opt-grid two">${OC_PROVS.map(p=>`<label class="opt"><input type="checkbox" class="oc-prov" value="${esc(p)}"/> ${esc(p)}</label>`).join('')}</div>
+              <div class="field" style="margin-top:6px"><label>Outros</label><input id="oc-provOutro" placeholder="Digite outras providências"/></div>
+            </div>
+            <div class="field"><label>Severidade</label><select id="oc-sev">${OC_SEV.map(s=>`<option ${s==='Média'?'selected':''}>${s}</option>`).join('')}</select></div>
+            <div class="field"><label>Situação</label><select id="oc-sit">${OC_SIT.map(s=>`<option>${s}</option>`).join('')}</select></div>
+            <div class="field full"><label>Responsável pelo atendimento</label><input id="oc-resp" placeholder="Nome do responsável"/></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:14px;flex-wrap:wrap;gap:10px">
+            <div style="font-size:11.5px;color:#999;line-height:1.4">Setor de Eventos · Gerência de Relações Institucionais<br>Araújo Jorge | Hospital de Câncer</div>
+            <button class="btn btn-primary" onclick="addOcorr()"><i data-lucide="check"></i>Registrar Ocorrência</button>
+          </div>
+        </div>
+        <div class="card" style="border:1px solid #F3C9C6;background:#FFF7F6">
+          <div style="display:flex;align-items:center;gap:8px;color:#C0231D;font-weight:800"><i data-lucide="alert-circle"></i>PENDENTES (${abertas.length})</div>
+          <div style="margin-top:10px;font-size:13px;color:#555">
+            ${abertas.length?abertas.map(o=>`<div style="padding:8px 0;border-bottom:1px solid #f0dede"><b>${esc(o.local||'Local não informado')}</b><br><span style="color:#888">${esc(o.tipo||o.tipoOutro||'-')} · ${esc(o.horario||'')}</span></div>`).join(''):'Nada pendente ✓'}
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px">
+        <div class="card-head"><h3>Ocorrências registradas (${e.ocorrencias.length})</h3>
+        <div style="font-size:13px;color:#888">${andamento} em andamento · ${resolv} resolvidas</div></div>
+        ${e.ocorrencias.length?`<div style="overflow-x:auto"><table class="esc-table"><tr><th>Horário</th><th>Local</th><th>Tipo</th><th>Severidade</th><th>Situação</th><th></th></tr>
+          ${e.ocorrencias.map(o=>`<tr>
+            <td>${dt(o.data)} ${esc(o.horario||'')}</td>
+            <td>${esc(o.local||'-')}<div style="font-size:12px;color:#999">${esc((o.descricao||'').slice(0,60))}</div></td>
+            <td>${esc(o.tipo==='__outro'?o.tipoOutro:(o.tipo||o.tipoOutro||'-'))}</td>
+            <td><span class="badge ${o.severidade==='Crítica'||o.severidade==='Alta'?'b-amber':'b-gray'}">${esc(o.severidade||'-')}</span></td>
+            <td><select onchange="ocSit('${o.id}',this.value)" style="border:1px solid #eee;border-radius:6px;padding:3px 6px;font-size:12px">${OC_SIT.map(s=>`<option ${o.situacao===s?'selected':''}>${s}</option>`).join('')}</select></td>
+            <td style="white-space:nowrap"><button class="icon-btn" onclick="ocPrintOne('${o.id}')" title="Imprimir"><i data-lucide="printer"></i></button><button class="icon-btn" onclick="delOcorr('${o.id}')" title="Excluir"><i data-lucide="trash-2"></i></button></td>
+          </tr>`).join('')}
+        </table></div>`:'<div class="empty" style="padding:24px;text-align:center;color:#999">Nenhuma ocorrência registrada ainda.</div>'}
+      </div>`;
+    }
+    window.addOcorr=function(){
+      const e=ev();
+      const tp=document.querySelector('input[name="oc-tipo"]:checked');
+      const provs=[...document.querySelectorAll('.oc-prov:checked')].map(x=>x.value);
+      const o={id:uid(),data:$('#oc-data').value,horario:$('#oc-hora').value,comunicante:$('#oc-com').value.trim(),local:$('#oc-local').value.trim(),tipo:tp?tp.value:'',tipoOutro:$('#oc-tipoOutro').value.trim(),descricao:$('#oc-desc').value.trim(),provs:provs,provOutro:$('#oc-provOutro').value.trim(),severidade:$('#oc-sev').value,situacao:$('#oc-sit').value,responsavel:$('#oc-resp').value.trim()};
+      if(!o.local && !o.descricao){ toast('Informe ao menos o local e a descrição.'); return; }
+      e.ocorrencias.unshift(o); saveEv(); toast('Ocorrência registrada.'); VIEWS.realizacao();
+    };
+    window.ocSit=function(id,val){ const o=ev().ocorrencias.find(x=>x.id===id); if(o){o.situacao=val;saveEv();VIEWS.realizacao();} };
+    window.delOcorr=function(id){ if(!confirm('Excluir esta ocorrência?'))return; const e=ev(); e.ocorrencias=e.ocorrencias.filter(o=>o.id!==id); saveEv(); VIEWS.realizacao(); };
+    function ocRow(o){ return [dt(o.data),o.horario||'',o.comunicante||'',o.local||'',o.tipo==='__outro'?o.tipoOutro:(o.tipo||''),o.descricao||'',[...(o.provs||[]),o.provOutro].filter(Boolean).join('; '),o.severidade||'',o.situacao||'',o.responsavel||'']; }
+    window.ocExcel=function(){ const e=ev(); if(!e.ocorrencias.length){toast('Sem ocorrências para exportar.');return;} exportXLS('ocorrencias-'+(e.name||'evento'),['Data','Horário','Comunicante','Local','Tipo','Descrição','Providências','Severidade','Situação','Responsável'],e.ocorrencias.map(ocRow)); };
+    window.ocImport=function(){ pickSheet(rows=>{ const e=ev(); const g=(o,...k)=>{for(const kk of k){for(const key in o){if(key.toLowerCase().replace(/[^a-z]/g,'').includes(kk)){return o[key];}}}return'';}; let n=0; rows.forEach(r=>{ const local=g(r,'local'); const desc=g(r,'descri'); if(!local&&!desc)return; e.ocorrencias.push({id:uid(),data:(g(r,'data')||'').split('/').reverse().join('-')||'',horario:g(r,'horar'),comunicante:g(r,'comunic'),local:local,tipo:g(r,'tipo'),tipoOutro:'',descricao:desc,provs:[],provOutro:g(r,'providen'),severidade:g(r,'sever')||'Média',situacao:g(r,'situac')||'Aberta',responsavel:g(r,'respons')}); n++; }); saveEv(); toast(n+' ocorrência(s) importada(s).'); VIEWS.realizacao(); }); };
+    function ocFullHTML(list){ return `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <tr style="background:#E8620C;color:#fff"><th style="padding:6px;text-align:left">Data/Hora</th><th style="padding:6px;text-align:left">Local</th><th style="padding:6px;text-align:left">Tipo</th><th style="padding:6px;text-align:left">Descrição</th><th style="padding:6px;text-align:left">Providências</th><th style="padding:6px;text-align:left">Sev.</th><th style="padding:6px;text-align:left">Situação</th><th style="padding:6px;text-align:left">Responsável</th></tr>
+      ${list.map(o=>`<tr style="border-bottom:1px solid #ddd"><td style="padding:6px">${dt(o.data)} ${esc(o.horario||'')}</td><td style="padding:6px">${esc(o.local||'')}</td><td style="padding:6px">${esc(o.tipo==='__outro'?o.tipoOutro:(o.tipo||''))}</td><td style="padding:6px">${esc(o.descricao||'')}</td><td style="padding:6px">${esc([...(o.provs||[]),o.provOutro].filter(Boolean).join('; '))}</td><td style="padding:6px">${esc(o.severidade||'')}</td><td style="padding:6px">${esc(o.situacao||'')}</td><td style="padding:6px">${esc(o.responsavel||'')}</td></tr>`).join('')}
+    </table>`; }
+    window.ocPrint=function(){ const e=ev(); if(!e.ocorrencias.length){toast('Sem ocorrências.');return;} printHTML('Relatório de Ocorrências - '+(e.name||''),`<h2 style="color:#E8620C">Relatório de Ocorrências</h2><div style="color:#666;margin-bottom:12px">3º Risoto Solidário · Sabores do Cerrado · Total: ${e.ocorrencias.length}</div>${ocFullHTML(e.ocorrencias)}<div style="margin-top:16px;font-size:11px;color:#888">Setor de Eventos · Gerência de Relações Institucionais · Araújo Jorge | Hospital de Câncer</div>`); };
+    window.ocPrintOne=function(id){ const o=ev().ocorrencias.find(x=>x.id===id); if(!o)return; printHTML('Ocorrência',`<h2 style="color:#E8620C">Registro de Ocorrência</h2>${ocFullHTML([o])}`); };
+
+    /* ================= ESCALA ================= */
+    function tags(str){ return String(str||'').split(',').map(s=>s.trim()).filter(Boolean).map(s=>`<span class="tag">${esc(s)}</span>`).join('')||'<span style="color:#bbb">-</span>'; }
+    function renderEscala(e){
+      return `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:6px">
+        <div><h2 style="margin:0;color:var(--primary-dark)">Escala de Trabalho</h2>
+        <div style="color:#888;font-size:13px">${e.escalaTrab.length} frentes · Distribuição de rádios ao final</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="escAdd()"><i data-lucide="plus"></i>Nova frente</button>
+          <button class="btn btn-ghost btn-sm" onclick="escImport()"><i data-lucide="upload"></i>Importar</button>
+          <button class="btn btn-ghost btn-sm" onclick="escExcel()"><i data-lucide="file-spreadsheet"></i>Relatório Excel</button>
+        </div>
+      </div>
+      <div class="card"><div style="overflow-x:auto"><table class="esc-table">
+        <tr><th style="width:22%">Área</th><th style="width:26%">Líder</th><th>Equipe</th><th style="width:70px"></th></tr>
+        ${e.escalaTrab.map(r=>`<tr>
+          <td><b style="color:var(--primary-dark)">${esc(r.area)}</b></td>
+          <td style="color:var(--primary)">${esc(r.lider||'-')}</td>
+          <td>${tags(r.equipe)}</td>
+          <td style="white-space:nowrap"><button class="icon-btn" onclick="escEdit('${r.id}')"><i data-lucide="pencil"></i></button><button class="icon-btn" onclick="escDel('${r.id}')"><i data-lucide="trash-2"></i></button></td>
+        </tr>`).join('')}
+      </table></div></div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h3>Distribuição dos Rádios (${e.radios.length})</h3>
+          <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="radAdd()"><i data-lucide="plus"></i>Rádio</button><button class="btn btn-ghost btn-sm" onclick="radExcel()"><i data-lucide="file-spreadsheet"></i>Excel</button></div></div>
+        <div style="overflow-x:auto"><table class="esc-table"><tr><th style="width:120px">Rádio</th><th>Responsável</th><th style="width:70px"></th></tr>
+          ${e.radios.map(r=>`<tr><td><b>${esc(r.radio)}</b></td><td>${esc(r.resp||'-')}</td><td style="white-space:nowrap"><button class="icon-btn" onclick="radEdit('${r.id}')"><i data-lucide="pencil"></i></button><button class="icon-btn" onclick="radDel('${r.id}')"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}
+        </table></div>
+      </div>`;
+    }
+    window.escAdd=function(){ escForm({id:'',area:'',lider:'',equipe:''}); };
+    window.escEdit=function(id){ const r=ev().escalaTrab.find(x=>x.id===id); if(r)escForm(r); };
+    function escForm(r){ openModal(r.id?'Editar frente':'Nova frente',`
+      <div class="field"><label>Área</label><input id="es-area" value="${esc(r.area)}"/></div>
+      <div class="field"><label>Líder</label><input id="es-lider" value="${esc(r.lider)}"/></div>
+      <div class="field"><label>Equipe (separe por vírgula)</label><input id="es-eq" value="${esc(r.equipe)}"/></div>
+      <button class="btn btn-primary btn-block" onclick="escSave('${r.id}')">Salvar</button>`); }
+    window.escSave=function(id){ const e=ev(); const o={area:$('#es-area').value.trim(),lider:$('#es-lider').value.trim(),equipe:$('#es-eq').value.trim()}; if(!o.area){toast('Informe a área.');return;} if(id){Object.assign(e.escalaTrab.find(x=>x.id===id),o);}else{e.escalaTrab.push({id:uid(),...o});} saveEv(); closeModal(); VIEWS.realizacao(); toast('Escala salva.'); };
+    window.escDel=function(id){ if(!confirm('Excluir esta frente?'))return; const e=ev(); e.escalaTrab=e.escalaTrab.filter(x=>x.id!==id); saveEv(); VIEWS.realizacao(); };
+    window.escExcel=function(){ const e=ev(); exportXLS('escala-trabalho-'+(e.name||'evento'),['Área','Líder','Equipe'],e.escalaTrab.map(r=>[r.area,r.lider,r.equipe])); };
+    window.escImport=function(){ pickSheet(rows=>{ const e=ev(); const g=(o,...k)=>{for(const kk of k){for(const key in o){if(key.toLowerCase().replace(/[^a-z0-9]/g,'').includes(kk)){return o[key];}}}return'';}; let n=0; rows.forEach(r=>{ const area=g(r,'area','frente'); if(!area)return; const lider=g(r,'lider','líder'); const pessoas=[]; for(let i=1;i<=7;i++){const p=g(r,'pessoa'+i);if(p)pessoas.push(p);} let eq=pessoas.join(', '); if(!eq)eq=g(r,'equipe'); e.escalaTrab.push({id:uid(),area:area,lider:lider,equipe:eq}); n++; }); saveEv(); toast(n+' frente(s) importada(s).'); VIEWS.realizacao(); }); };
+    window.radAdd=function(){ radForm({id:'',radio:'',resp:''}); };
+    window.radEdit=function(id){ const r=ev().radios.find(x=>x.id===id); if(r)radForm(r); };
+    function radForm(r){ openModal(r.id?'Editar rádio':'Novo rádio',`<div class="field"><label>Rádio</label><input id="rd-n" value="${esc(r.radio)}" placeholder="Ex.: Rádio 13"/></div><div class="field"><label>Responsável</label><input id="rd-r" value="${esc(r.resp)}"/></div><button class="btn btn-primary btn-block" onclick="radSave('${r.id}')">Salvar</button>`); }
+    window.radSave=function(id){ const e=ev(); const o={radio:$('#rd-n').value.trim(),resp:$('#rd-r').value.trim()}; if(!o.radio){toast('Informe o rádio.');return;} if(id){Object.assign(e.radios.find(x=>x.id===id),o);}else{e.radios.push({id:uid(),...o});} saveEv(); closeModal(); VIEWS.realizacao(); };
+    window.radDel=function(id){ const e=ev(); e.radios=e.radios.filter(x=>x.id!==id); saveEv(); VIEWS.realizacao(); };
+    window.radExcel=function(){ const e=ev(); exportXLS('radios-'+(e.name||'evento'),['Rádio','Responsável'],e.radios.map(r=>[r.radio,r.resp])); };
+
+    /* ================= CONTATOS ================= */
+    function renderContatos(e){
+      const list=e.contatosOp.slice().sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt'));
+      return `
+      <div style="margin-bottom:6px"><h2 style="margin:0;color:var(--primary-dark)">Contatos</h2>
+      <div style="color:#888;font-size:13px">Diretório da equipe · ligue ou envie WhatsApp direto do app</div></div>
+      <div style="margin:12px 0"><div class="field" style="margin:0"><div style="position:relative"><i data-lucide="search" style="position:absolute;left:12px;top:11px;width:16px;height:16px;color:#aaa"></i><input id="op-search" oninput="opFilter(this.value)" placeholder="Buscar contato, função ou telefone..." style="padding-left:36px"/></div></div></div>
+      <div class="card">
+        <div class="card-head"><div style="display:flex;align-items:center;gap:8px"><i data-lucide="users" style="color:var(--primary)"></i><h3 style="margin:0">Equipe do Evento</h3><span style="color:#999;font-size:13px">${list.length} pessoa(s)</span></div>
+          <button class="btn btn-ghost btn-sm" onclick="opExcel()"><i data-lucide="file-spreadsheet"></i>Relatório Excel</button></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end" class="oc-form">
+          <div class="field" style="margin:0"><label>Nome *</label><input id="op-nome" placeholder="Ex.: Deuba Assunção"/></div>
+          <div class="field" style="margin:0"><label>Função</label><input id="op-func" placeholder="Ex.: Coordenação"/></div>
+          <div class="field" style="margin:0"><label>Telefone</label><input id="op-tel" placeholder="(62) 98578-8797"/></div>
+        </div>
+        <div style="text-align:right;margin-top:10px"><button class="btn btn-primary" onclick="opAdd()"><i data-lucide="user-plus"></i>Adicionar</button></div>
+        <details style="margin:8px 0 14px"><summary style="cursor:pointer;color:var(--primary);font-weight:600;font-size:14px">Adicionar vários de uma vez (cole a lista)</summary>
+          <div style="margin-top:8px"><textarea id="op-bulk" rows="4" placeholder="Um por linha: Nome, Função, Telefone" style="width:100%"></textarea>
+          <div style="text-align:right;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="opBulk()">Inserir lista</button></div></div>
+        </details>
+        <div id="op-list">
+          ${list.map(c=>{const d=digits(c.telefone);return `<div class="op-row" data-s="${esc((c.nome+' '+c.funcao+' '+c.telefone).toLowerCase())}">
+            <div><div class="nm">${esc(c.nome)}</div><div class="fn">${esc(c.funcao||'-')}${c.telefone?' · '+esc(c.telefone):''}</div></div>
+            <div style="display:flex;align-items:center;gap:2px">
+              ${d?`<a class="icon-btn" href="tel:+55${d}" title="Ligar"><i data-lucide="phone"></i></a><a class="icon-btn wa" href="https://wa.me/55${d}" target="_blank" title="WhatsApp"><i data-lucide="message-circle"></i></a>`:''}
+              <button class="icon-btn" onclick="opEdit('${c.id}')" title="Editar"><i data-lucide="pencil"></i></button>
+              <button class="icon-btn" onclick="opDel('${c.id}')" title="Excluir"><i data-lucide="trash-2"></i></button>
+            </div></div>`;}).join('')}
+        </div>
+      </div>`;
+    }
+    window.opFilter=function(q){ q=(q||'').toLowerCase(); document.querySelectorAll('#op-list .op-row').forEach(r=>{ r.style.display=r.getAttribute('data-s').includes(q)?'':'none'; }); };
+    window.opAdd=function(){ const e=ev(); const nome=$('#op-nome').value.trim(); if(!nome){toast('Informe o nome.');return;} e.contatosOp.push({id:uid(),nome:nome,funcao:$('#op-func').value.trim(),telefone:$('#op-tel').value.trim()}); saveEv(); VIEWS.realizacao(); toast('Contato adicionado.'); };
+    window.opBulk=function(){ const e=ev(); const txt=$('#op-bulk').value; let n=0; txt.split('\n').forEach(l=>{ l=l.trim(); if(!l)return; const parts=l.split(/[\t;,]/).map(s=>s.trim()); if(!parts[0])return; e.contatosOp.push({id:uid(),nome:parts[0],funcao:parts[1]||'',telefone:parts[2]||''}); n++; }); if(!n){toast('Nada para inserir.');return;} saveEv(); VIEWS.realizacao(); toast(n+' contato(s) adicionado(s).'); };
+    window.opEdit=function(id){ const c=ev().contatosOp.find(x=>x.id===id); if(!c)return; openModal('Editar contato',`<div class="field"><label>Nome</label><input id="ope-n" value="${esc(c.nome)}"/></div><div class="field"><label>Função</label><input id="ope-f" value="${esc(c.funcao)}"/></div><div class="field"><label>Telefone</label><input id="ope-t" value="${esc(c.telefone)}"/></div><button class="btn btn-primary btn-block" onclick="opSave('${c.id}')">Salvar</button>`); };
+    window.opSave=function(id){ const c=ev().contatosOp.find(x=>x.id===id); if(!c)return; c.nome=$('#ope-n').value.trim(); c.funcao=$('#ope-f').value.trim(); c.telefone=$('#ope-t').value.trim(); saveEv(); closeModal(); VIEWS.realizacao(); toast('Contato atualizado.'); };
+    window.opDel=function(id){ if(!confirm('Excluir este contato?'))return; const e=ev(); e.contatosOp=e.contatosOp.filter(x=>x.id!==id); saveEv(); VIEWS.realizacao(); };
+    window.opExcel=function(){ const e=ev(); exportXLS('contatos-'+(e.name||'evento'),['Nome','Função','Telefone'],e.contatosOp.slice().sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt')).map(c=>[c.nome,c.funcao,c.telefone])); };
+  })();
+  </script>
   <script id="app-seed">
   /* ---- SEED: Risoto Solidário 2026 ---- */
   (function(){

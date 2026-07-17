@@ -4013,7 +4013,8 @@
     .oc-form .full{grid-column:1/-1}
     .opt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 14px;margin-top:6px}
     .opt-grid.two{grid-template-columns:1fr 1fr}
-    .opt{display:flex;align-items:center;gap:7px;font-size:13.5px;color:#444}
+    .opt{display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:8px;font-size:13.5px;color:#444}
+    .opt input[type=radio],.opt input[type=checkbox]{width:16px;height:16px;min-width:16px;flex:none;margin:0;accent-color:var(--primary)}
     .esc-table{width:100%;border-collapse:collapse;font-size:14px}
     .esc-table th{background:var(--primary);color:#fff;text-align:left;padding:9px 10px;font-size:12px;letter-spacing:.3px;text-transform:uppercase}
     .esc-table td{border-bottom:1px solid #eee;padding:9px 10px;vertical-align:top}
@@ -4122,7 +4123,7 @@
         <div style="color:#888;font-size:13px">3º Risoto Solidário · Sabores do Cerrado</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="ocImport()"><i data-lucide="upload"></i>Importar</button>
-          <button class="btn btn-ghost btn-sm" onclick="ocPrint()"><i data-lucide="printer"></i>Imprimir</button>
+          <button class="btn btn-ghost btn-sm" onclick="ocPrint()"><i data-lucide="printer"></i>Imprimir lista</button>
           <button class="btn btn-ghost btn-sm" onclick="ocExcel()"><i data-lucide="file-spreadsheet"></i>Relatório Excel</button>
         </div>
       </div>
@@ -4193,7 +4194,34 @@
       ${list.map(o=>`<tr style="border-bottom:1px solid #ddd"><td style="padding:6px">${dt(o.data)} ${esc(o.horario||'')}</td><td style="padding:6px">${esc(o.local||'')}</td><td style="padding:6px">${esc(o.tipo==='__outro'?o.tipoOutro:(o.tipo||''))}</td><td style="padding:6px">${esc(o.descricao||'')}</td><td style="padding:6px">${esc([...(o.provs||[]),o.provOutro].filter(Boolean).join('; '))}</td><td style="padding:6px">${esc(o.severidade||'')}</td><td style="padding:6px">${esc(o.situacao||'')}</td><td style="padding:6px">${esc(o.responsavel||'')}</td></tr>`).join('')}
     </table>`; }
     window.ocPrint=function(){ const e=ev(); if(!e.ocorrencias.length){toast('Sem ocorrências.');return;} printHTML('Relatório de Ocorrências - '+(e.name||''),`<h2 style="color:#E8620C">Relatório de Ocorrências</h2><div style="color:#666;margin-bottom:12px">3º Risoto Solidário · Sabores do Cerrado · Total: ${e.ocorrencias.length}</div>${ocFullHTML(e.ocorrencias)}<div style="margin-top:16px;font-size:11px;color:#888">Setor de Eventos · Gerência de Relações Institucionais · Araújo Jorge | Hospital de Câncer</div>`); };
-    window.ocPrintOne=function(id){ const o=ev().ocorrencias.find(x=>x.id===id); if(!o)return; printHTML('Ocorrência',`<h2 style="color:#E8620C">Registro de Ocorrência</h2>${ocFullHTML([o])}`); };
+    window.ocPrintOne=function(id){ const o=ev().ocorrencias.find(x=>x.id===id); if(!o)return;
+      const row=(l,v)=>`<tr><td style="padding:7px 10px;background:#FFF1E6;font-weight:700;width:180px;border:1px solid #f0d6c2;color:#8A3A08">${l}</td><td style="padding:7px 10px;border:1px solid #eee">${esc(v||'-')}</td></tr>`;
+      const provs=[...(o.provs||[]),o.provOutro].filter(Boolean).join('; ');
+      printHTML('Ocorrência',`
+      <div style="max-width:720px">
+        <div style="border-bottom:3px solid #E8620C;padding-bottom:8px;margin-bottom:14px">
+          <div style="font-size:12px;letter-spacing:1px;color:#E8620C;font-weight:800">RISOTO SOLIDÁRIO · SABORES DO CERRADO</div>
+          <h2 style="margin:2px 0;color:#1c1c1c">Formulário de Registro de Ocorrência</h2>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          ${row('Data / Horário', dt(o.data)+' '+(o.horario||''))}
+          ${row('Comunicante', o.comunicante)}
+          ${row('Local', o.local)}
+          ${row('Tipo de ocorrência', o.tipo==='__outro'?o.tipoOutro:(o.tipo||o.tipoOutro))}
+          ${row('Severidade', o.severidade)}
+          ${row('Situação', o.situacao)}
+          ${row('Responsável', o.responsavel)}
+        </table>
+        <div style="margin-top:14px;font-weight:700;color:#E8620C;font-size:13px">Descrição da ocorrência</div>
+        <div style="border:1px solid #eee;border-radius:8px;padding:10px;min-height:56px;font-size:13px">${esc(o.descricao||'-')}</div>
+        <div style="margin-top:12px;font-weight:700;color:#E8620C;font-size:13px">Providências adotadas</div>
+        <div style="border:1px solid #eee;border-radius:8px;padding:10px;font-size:13px">${esc(provs||'-')}</div>
+        <div style="margin-top:34px;display:flex;justify-content:space-between;gap:30px;font-size:12px;color:#555">
+          <div style="flex:1;text-align:center;border-top:1px solid #999;padding-top:4px">Responsável pelo atendimento</div>
+          <div style="flex:1;text-align:center;border-top:1px solid #999;padding-top:4px">Central de Operações</div>
+        </div>
+        <div style="margin-top:20px;font-size:11px;color:#888">Setor de Eventos · Gerência de Relações Institucionais · Araújo Jorge | Hospital de Câncer</div>
+      </div>`); };
 
     /* ================= ESCALA ================= */
     function tags(str){ return String(str||'').split(',').map(s=>s.trim()).filter(Boolean).map(s=>`<span class="tag">${esc(s)}</span>`).join('')||'<span style="color:#bbb">-</span>'; }

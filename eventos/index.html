@@ -453,7 +453,7 @@
     if(!Array.isArray(e.cronologia)) e.cronologia=[];
     e.info = Object.assign({}, base.info, (e.info&&!e.info.fixed)?e.info:{nome:e.name});
     e.vendaCfg = Object.assign({}, base.vendaCfg, e.vendaCfg||{});
-    ['chefs','assessorias','voluntarios','vendas','apoios','vendasDiarias','circulacao','contrapartidas','patrocinios','despesas','receitas','comTv','comPlano','comImpulso','releases','envios','publicacoes','influenciadores','checklist','checklistBlocos','checklistAudit','reunioes','agendaDiaria','visitas','ocorrencias','escalaTrab','contatosOp']
+    ['chefs','assessorias','voluntarios','vendas','apoios','vendasDiarias','circulacao','contrapartidas','patrocinios','despesas','receitas','comTv','comPlano','comImpulso','releases','envios','publicacoes','influenciadores','checklist','checklistBlocos','checklistAudit','reunioes','agendaDiaria','visitas','ocorrencias','escalaTrab','contatosOp','cronograma','checklistGeral','documentos','autorizacoes']
       .forEach(k=>{ if(!Array.isArray(e[k])) e[k]=[]; });
     e.apoios.forEach(a=>{ if(!Array.isArray(a.entregas))a.entregas=[]; if(!Array.isArray(a.prestacoes))a.prestacoes=[]; });
     e.despesas.forEach(d=>{ if(d.cat!=null&&d.categoria==null)d.categoria=d.cat; if(d.desc!=null&&d.descricao==null)d.descricao=d.desc; if(!d.situacao)d.situacao='Orçado'; if(!d.anexos)d.anexos={}; });
@@ -4025,7 +4025,15 @@
     .icon-btn{background:transparent;border:0;cursor:pointer;color:#999;padding:6px;border-radius:8px}
     .icon-btn:hover{background:#f3f3f3;color:var(--primary)}
     .icon-btn.wa{color:#25D366}
-    @media(max-width:720px){.oc-form{grid-template-columns:1fr}.opt-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:720px){.oc-form{grid-template-columns:1fr}.opt-grid{grid-template-columns:1fr 1fr}.oc-layout{grid-template-columns:1fr!important}}
+    .cro-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px}
+    .cro-h{font-weight:800;font-size:13px;min-width:52px}
+    .chk-row{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid #f2f2f2;font-size:14px}
+    .chk-row:last-child{border-bottom:0}
+    .chk-st{background:transparent;border:0;cursor:pointer;padding:2px;display:flex;align-items:center}
+    .doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+    .doc-card{display:flex;flex-direction:column}
+    .doc-ic{width:44px;height:44px;border-radius:11px;background:#FFF1E6;display:flex;align-items:center;justify-content:center}
   </style>
   <script id="app-realizacao">
   (function(){
@@ -4037,27 +4045,62 @@
     const ESCALA_SEED=[['Montagem','Deuba Assunção, Jurdan Vicente e Marta Tiffany','Amanda Thereza'],['Preparação do caldo','Deuba Assunção e Marta Tiffany',''],['Entrega dos Kits','Marta Tiffany','Adriane Rodrigues, Isabel, Sione'],['Entrega dos postos de trabalho','Marta Tiffany','Jurdan Vicente'],['Camarim','Marta Tiffany','Isabel'],['Palco','Deuba Assunção','Marta Tiffany, Isabel'],['Cozinha','Jurdan Vicente','Cláudia Tereza, Nelson Nunes, Segurança 1, Segurança 2'],['Portaria','Marta Tiffany','Lara, Mônica, Miriam Abadia, Ana Paula, Segurança'],['Salão (Ronda)','Jurdan Vicente','Segurança'],['Venda de Ingressos','Marta Tiffany','Débora'],['Bilheteria','Marta Tiffany','Cícero, Sueli, Patrícia, Sione, Ana Navarro'],['Estação de Risoto','Adriane Rodrigues','Deusimar, Eliane Mármore, Edna Pereira, Adelson, Josefa da Silva, Claudinei Dias'],['Reposição','Adriane Rodrigues','Vanessa, Luzia Cordeiro'],['Orientação das Estações','Adriane Rodrigues','Edna Ribeiro'],['Limpeza Salão','Jurdan Vicente','Maria Divina, a definir, a definir'],['Limpeza Banheiro','Jurdan Vicente','a definir, a definir'],['Limpeza Cozinha','Jurdan Vicente','a definir'],['Central de Operações','Marta Tiffany','Amanda Thereza, Maíra Silva, Luanna Souza'],['Comunicação - Fotografia','Deuba Assunção','Matheus, Allison'],['Comunicação - Video Maker','Deuba Assunção','Gustavo'],['Comunicação - Redes Sociais','Deuba Assunção','Naiane'],['Comunicação - Assessoria de Imprensa','Deuba Assunção','Caroline'],['Desmontagem','Jurdan Vicente e Marta Tiffany','Chapa, Chapa, Chapa, Chapa'],['Pós evento','Marta Tiffany','Empresas contratadas']];
     const RADIOS_SEED=[['Rádio 01','Deuba Assunção'],['Rádio 02','Marta Tiffany'],['Rádio 03','Jurdan Vicente'],['Rádio 04','Adriane Rodrigues'],['Rádio 05','Central de Operações'],['Rádio 06','Bilheteria'],['Rádio 07','Carolina'],['Rádio 08','Isabel'],['Rádio 09','Naiane'],['Rádio 10','Reserva'],['Rádio 11','Reserva'],['Rádio 12','Reserva']];
     const CONT_SEED=[['Deuba Assunção','Coordenação Geral','(62) 98578-8797'],['Amanda Thereza','Central de Operações','(62) 99564-9951'],['Maíra Silva','Central de Operações',''],['Luanna Souza','Central de Operações',''],['Marta Tiffany','Bilheteria e Palco',''],['Jurdan Vicente','Apoio Operacional / Cozinha',''],['Adriane Rodrigues','Voluntários / Estações',''],['Adelson da Cunha Bastos','Voluntário',''],['Ana Navarro','Voluntário',''],['Cláudia Tereza da Silva Felipe','Voluntário',''],['Nelson Nunes','Cozinha',''],['Cícero','Bilheteria',''],['Sueli','Bilheteria',''],['Patrícia','Bilheteria',''],['Sione','Bilheteria / Kits',''],['Débora','Venda de Ingressos',''],['Isabel','Camarim / Kits',''],['Matheus','Comunicação - Fotografia',''],['Gustavo','Comunicação - Vídeo',''],['Caroline','Assessoria de Imprensa','']];
+    const CRONO_SEED=[
+      {fase:'FASE 1',data:'17/07',dia:'Sexta',sub:'Montagem I',itens:[['08h','montagem','Início da montagem geral (palco, telão, som, iluminação, cozinha, central de operações)'],['10h','montagem','Instalação do link de internet e Foto 360º'],['14h','montagem','Testes das instalações'],['17h','montagem','Final do expediente']]},
+      {fase:'FASE 2',data:'18/07',dia:'Sábado',sub:'Montagem II · Produção do Caldo',itens:[['08h','montagem','Continuação da montagem (caso necessário)'],['10h','acao','Passagem de roteiro com mestre de cerimônia'],['14h','montagem','Início da produção do caldo (Equipe Curitiba)'],['16h','montagem','Início da produção do caldo (Equipe Curitiba)'],['18h','alerta','Finalização da produção do caldo e limpeza do local'],['20h','acao','Entrega do salão']]},
+      {fase:'FASE 3',data:'19/07',dia:'Domingo · DIA DO EVENTO',sub:'Realização',itens:[['06h30','acao','Chegada da equipe de produção e comunicação'],['07h','acao','Café da manhã da equipe de produção e comunicação'],['08h','acao','Recepção dos Chefs Solidários e entrega dos uniformes'],['08h','acao','Abertura da cozinha e entrada dos chefs'],['09h','acao','Chegada dos voluntários'],['11h','acao','Lanche da equipe que vai trabalhar no evento'],['11h','alerta','Bombeiros civis, ambulância e segurança em posição'],['11h30','acao','Abertura dos portões, início da bilheteria'],['12h','acao','Início do evento, atendimento ao público'],['14h','acao','Transmissão da final da Copa do Mundo (telão)'],['14h30','acao','Show musical'],['17h','acao','Transmissão da final da Copa do Mundo (telão)'],['18h','concluido','Encerramento'],['19h','concluido','Entrega do salão']]},
+      {fase:'FASE 4',data:'20/07',dia:'Segunda',sub:'Desmontagem',itens:[['08h','montagem','Desmontagem geral'],['12h','acao','Limpeza final e conferência de materiais'],['16h','alerta','Vistoria conjunta com a UFG e entrega oficial do espaço']]}
+    ];
+    const DOC_SEED=[['Manual de Operações','DOCX','1ª Edição · Julho 2026 · Documento oficial completo do evento.','book-open'],['Checklist Geral','DOCX','25 seções · itens operacionais.','clipboard-list'],['Escala de Trabalho','XLSX','Escala completa por área e distribuição dos rádios.','users']];
+    const CHK_SEED=[
+      ['1. Gestão e Planejamento',['XCronograma validado','XManual Operacional concluído','XPlano de Segurança concluído','XPlano de Limpeza concluído','XPlano de Gerenciamento de Resíduos concluído','XPlano de Contingência concluído','XEscalas aprovadas','XResponsáveis definidos','XGrupo de WhatsApp ativo','XLista de contatos atualizada','XReunião final com líderes realizada','.Pasta da Central de Operações organizada']],
+      ['2. Licenças e Documentação',['~Prefeitura de Goiânia','~Corpo de Bombeiros','~Vigilância Sanitária','~UFG','~ART','~Contratos','~Autorizações','~Ofícios','~Seguro (quando aplicável)','~Plantas do evento','XManual Operacional impresso','XFormulários impressos']],
+      ['3. Infraestrutura - Salão',['.Palco','.Telão','.Som','.Iluminação','.Mesas','.Cadeiras','.Toalhas','.Grades','.Backdrops','.Banners','.Espaço patrocinadores','.Espaço Saúde em Foco','.Bilheteria','.Central de Operações','.Camarim']],
+      ['3.1 Infraestrutura - Cozinha',['XFogões','XBotijões','XMangueiras','XReguladores','XPanelas','XPanelas do caldo','XBancadas','XMesas','XPias','XÁgua','XEnergia','XIluminação','XFreezers','XRechauds','XLixeiras','~Extintores','~Baldes','XCaixas térmicas - Freezer Ok','XFacas','XTábuas','XConchas','XColheres - 1 colher de pau por dupla - OK','~Luvas','XToucas','XAventais','~Colar card de instruções de descarte dos resíduos']],
+      ['4. Preparação do Caldo',['~Comprar cebola','~Comprar cenoura','~Comprar alho-poró','~Comprar abobrinha','~Comprar água mineral','~Conferir ingredientes','XPanelas disponíveis','XUtensílios disponíveis','~Baldes higienizados','XCaixas térmicas higienizadas','~Equipe Curitiba confirmada','~Transporte ACCG agendado','~Motorista confirmado','XHorário definido','.Produção realizada','.Resfriamento realizado','.Acondicionamento realizado','.Transporte para UFG']],
+      ['5. Chefs Solidários',['~Lista atualizada','~Confirmação de presença','~Estações definidas','XIngredientes conferidos','XReceitas conferidas','XCurso de Boas Práticas validado','.Kit (avental, touca, luva, camiseta, toque...)','.Kit disponibilizado (colher, concha, faca, tábua...)']],
+      ['6. Voluntários',['XEscalas','XOrientação vestimentas','~Credenciais','XAlimentação','XÁgua','XTreinamento','XDistribuição por área','~Telefones']],
+      ['7. Bilheteria',['.Ingressos físicos','XPulseiras','XCaixa','~Troco','XPIX','~Máquinas','.Impressos','.Atendimento prioritário','.Lista do Sympla']],
+      ['8. Central de Operações',['~Notebook','~Impressora','XPapel','XCanetas - 6 canetas e 2 lápis','XPranchetas - 2 pranchetas','~Rádio','XTelefones úteis','XManual','~Licenças','XFormulários','XTesouras e estiletes','XFita crepe','XFita adesiva transparente','XBarbante','XFio de nylon ou de anzol','XAlfinetes','XCola branca e instantânea','~Etiquetas de identificação','~Números das estações','XSacos plásticos','XExtensões e adaptadores','~Régua de tomadas','~Cartucho ou toner reserva - Impressora','XCelular institucional','~Power Banks - 2 unidades','~Pen drive com todos os arquivos','~Arquivos armazenados em nuvem','XPilhas','~Certificados - chefs','XQR Code do Pix impresso - Conta Risoto','~QR Code do Pix salvo no celular - Conta risoto e Doações','XInformações sobre formas de doação','~Press kit - Comunicação','~Chaves','XÁlcool 70% reserva','XCheirinho - Reserva - Higienização HAJ','XPano de chão - Reserva - Higienização HAJ','XConchas - Reserva - Nutrição HAJ','XRodo - Reserva - Higienização HAJ','XPapel toalha - Reserva - Higienização HAJ','XPapel Higiênico - Reserva - Higienização HAJ','~Pano multiuso - Reserva - Almoxarifado','XLixeiras - Reserva - Higienização HAJ','XDetergente - Reserva - Higienização HAJ','~Luvas dos chefs - Reserva','XBorrifadores - Reserva','~Luvas de limpeza - Reserva','~Caixa térmica para água da equipe','~Identificar os rádios','XControle de Registro de Entrega dos Kits','~Lista dos 60 chefs - Digital','~Lista das duplas de chefs por ordem de estação - Digital','~Descrição da tinta e cor - Projeto de pintura da fachada','~Água e gelo','XDescarte de Resíduos - Impressos']],
+      ['9. Comunicação',['.Equipe posicionada','XFotógrafos','XVideomaker','XSocial Media','.Drone','.Baterias','.Cartões','.Flash','~Power Bank','XReleases','~Press Kit','.Credenciais','.QR Code banco de imagens','.Lista de entrevistas']],
+      ['10. Som e Iluminação',['.Mesa de som','.Microfones','.Retornos','.PA','.Cabos','.Operador','.Iluminação','.Passagem de som','.Teste final na sexta','.Teste na manhã do dia 19/07']],
+      ['11. Telão da Copa',['.Painel LED','.Controladora','.Notebook','.HDMI','.Internet','.Gerador','.Operador','.Teste de transmissão','.Vídeo institucional','.Vinhetas','.Slides','.Teste final na sexta','.Teste na manhã do dia 19/07']],
+      ['12. Saúde em Foco',['.Veículo','.Stand','.Equipe']],
+      ['13. Cerimonial',['.Mestre de cerimônias','.Roteiro','.Autoridades','.Ordem das falas','.Água palco','.Cronograma','.Vídeos','.Brifar mestre de cerimônias','.Elaborar o roteiro','.Pautar o mestre de cerimônia no dia do evento','XAlinhamento com a Mestre de cerimônia - feito em 15/07/2026']],
+      ['14. Camarim',['.Limpeza','.Água','.Café','.Refrigerante','.Frutas','.Lanches','.Copos','.Guardanapos','.Espelho','.Cadeiras','.Cabideiro']],
+      ['15. Segurança',['.Empresa posicionada','.Bombeiros Civis','.Ambulância','.Extintores','.Hidrantes','.Rotas de fuga','.Saídas de emergência','.Plano de evacuação','.Rádio']],
+      ['16. Limpeza',['.Equipe posicionada','XProdutos','XSacos de lixo','.Banheiros','.Salão','.Cozinha','.Estacionamento','.Reposição']],
+      ['17. Gerenciamento de Resíduos',['.Lixeiras identificadas','.Coleta seletiva','.Orgânicos','.Recicláveis','.Rejeitos','.Contêineres','.Transporte dos resíduos']],
+      ['18. Sinalização',['.Entrada','.Saída','.Bilheteria','.Banheiros','.Central de Operações','.Venda de Produtos','.Saúde em Foco','.Camarim','.Cozinha','.Acesso Restrito','.Uso obrigatório de touca','.Proibido fumar','.Atendimento prioritário','.Primeira chamada','.Saídas de emergência','.Localização dos extintores']],
+      ['19. Patrocinadores',['.Logos','.Backdrops','.Contrapartidas','.Recepção','.Fotos','.Agradecimentos']],
+      ['20. Link de Internet e Foto 360°',['.Instalação link de internet sexta','.Teste link de internet sexta','.Teste link de internet domingo assim que abrir o salão','.Acompanhar instalação da foto 360°']],
+      ['21. Durante o Evento',['.Reunião operacional','.Abertura dos portões','.Monitoramento da cozinha','.Monitoramento do salão','.Limpeza permanente','.Registro de ocorrências','.Atendimento à imprensa','.Atendimento às autoridades','.Reposição de materiais','.Reposição de água','.Reposição de gás','.Monitoramento da Foto 360°','.Monitoramento do telão','.Monitoramento do show','.Monitoramento da transmissão da Copa']],
+      ['22. Encerramento',['.Fechamento da bilheteria','.Fechamento financeiro','.Contagem dos ingressos','.Registro de ocorrências','.Limpeza final','.Desligamento dos equipamentos','.Fechamento do gás','.Retirada dos alimentos']],
+      ['23. Desmontagem',['.Palco','.Telão','.Som','.Iluminação','.Tendas','.Comunicação visual','.Equipamentos','.Cozinha','.Limpeza final','.Conferência de materiais']],
+      ['24. Vistoria UFG',['.Vistoria conjunta','.Registro fotográfico','.Formulário de encerramento','.Assinaturas','.Entrega oficial do espaço']],
+      ['25. Pós-Evento',['.Clipping da imprensa','.Backup das fotos','.Backup dos vídeos','.Relatório operacional','.Relatório financeiro','.Relatório de comunicação','.Relatório de ocorrências','.Prestação de contas','.Agradecimento aos patrocinadores','.Agradecimento aos chefs','.Agradecimento aos voluntários','.Agradecimento à imprensa','.Reunião de avaliação','.Registro das lições aprendidas']]
+    ];
 
     let realTab='ocorrencias';
     const isRis=e=>/risoto/i.test((e&&(e.grupo||e.name))||'');
     const digits=s=>String(s||'').replace(/\D/g,'');
     function seed(e){
-      if(!Array.isArray(e.ocorrencias)) e.ocorrencias=[];
-      if(!Array.isArray(e.escalaTrab)) e.escalaTrab=[];
-      if(!Array.isArray(e.contatosOp)) e.contatosOp=[];
-      if(!Array.isArray(e.radios)) e.radios=[];
+      ['ocorrencias','escalaTrab','contatosOp','radios','cronograma','checklistGeral','documentos','autorizacoes'].forEach(k=>{ if(!Array.isArray(e[k])) e[k]=[]; });
       if(isRis(e)){
         if(!e.escalaTrab.length) e.escalaTrab=ESCALA_SEED.map(r=>({id:uid(),area:r[0],lider:r[1],equipe:r[2]}));
         if(!e.radios.length) e.radios=RADIOS_SEED.map(r=>({id:uid(),radio:r[0],resp:r[1]}));
         if(!e.contatosOp.length) e.contatosOp=CONT_SEED.map(r=>({id:uid(),nome:r[0],funcao:r[1],telefone:r[2]}));
+        if(!e.cronograma.length) e.cronograma=CRONO_SEED.map(f=>({id:uid(),fase:f.fase,data:f.data,dia:f.dia,sub:f.sub,itens:f.itens.map(it=>({id:uid(),hora:it[0],tipo:it[1],texto:it[2]}))}));
+        if(!e.checklistGeral.length) e.checklistGeral=CHK_SEED.map(s=>({id:uid(),secao:s[0],itens:s[1].map(t=>({id:uid(),status:t[0]==='X'?'concluido':t[0]==='~'?'andamento':'pendente',texto:t.slice(1),obs:''}))}));
+        if(!e.documentos.length) e.documentos=DOC_SEED.map(d=>({id:uid(),nome:d[0],tipo:d[1],desc:d[2],icon:d[3],dataUrl:'',filename:''}));
         saveEv();
       }
     }
 
     VIEWS.realizacao=function(){
       const e=ev(); if(!e) return; seed(e);
-      const tabs=[['ocorrencias','Registro de Ocorrências','siren'],['escala','Escala de Trabalho','table-2'],['contatos','Contatos','contact']];
-      let body = realTab==='ocorrencias'?renderOcorr(e): realTab==='escala'?renderEscala(e): renderContatos(e);
+      const tabs=[['ocorrencias','Registro de Ocorrências','siren'],['cronograma','Cronograma','calendar-clock'],['checklist','Checklist Geral','list-checks'],['escala','Escala de Trabalho','table-2'],['contatos','Contatos','contact'],['documentos','Documentos','folder']];
+      let body = realTab==='ocorrencias'?renderOcorr(e): realTab==='cronograma'?renderCrono(e): realTab==='checklist'?renderChk(e): realTab==='escala'?renderEscala(e): realTab==='contatos'?renderContatos(e): renderDocs(e);
       $('#view').innerHTML=`
         <div class="rtabs">
           ${tabs.map(t=>`<button class="rtab ${realTab===t[0]?'active':''}" onclick="realGo('${t[0]}')"><i data-lucide="${t[2]}"></i>${t[1]}</button>`).join('')}
@@ -4238,6 +4281,150 @@
     window.opSave=function(id){ const c=ev().contatosOp.find(x=>x.id===id); if(!c)return; c.nome=$('#ope-n').value.trim(); c.funcao=$('#ope-f').value.trim(); c.telefone=$('#ope-t').value.trim(); saveEv(); closeModal(); VIEWS.realizacao(); toast('Contato atualizado.'); };
     window.opDel=function(id){ if(!confirm('Excluir este contato?'))return; const e=ev(); e.contatosOp=e.contatosOp.filter(x=>x.id!==id); saveEv(); VIEWS.realizacao(); };
     window.opExcel=function(){ const e=ev(); exportXLS('contatos-'+(e.name||'evento'),['Nome','Função','Telefone'],e.contatosOp.slice().sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt')).map(c=>[c.nome,c.funcao,c.telefone])); };
+
+    /* ================= CRONOGRAMA ================= */
+    const TIPO_META={montagem:['wrench','#2E6FD6','#EAF2FD'],acao:['circle','#E8620C','#FFF6EF'],alerta:['alert-triangle','#C0231D','#FDECEA'],concluido:['check-circle','#B8860B','#FBF4E0']};
+    function renderCrono(e){
+      return `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:6px">
+        <div><h2 style="margin:0;color:var(--primary-dark)">Cronograma Geral</h2>
+        <div style="color:#888;font-size:13px">Montagem · Realização · Desmontagem · 17 a 20 de julho de 2026</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="croFase()"><i data-lucide="plus"></i>Nova fase</button>
+          <button class="btn btn-ghost btn-sm" onclick="croPrint()"><i data-lucide="printer"></i>Imprimir PDF</button>
+        </div>
+      </div>
+      ${e.cronograma.map(f=>`
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+            <div><div style="font-size:11px;letter-spacing:1px;color:#999;font-weight:700">${esc(f.fase)}</div>
+            <div style="font-size:20px;font-weight:800;color:#1c1c1c">${esc(f.data)} · ${esc(f.dia)}</div>
+            <div style="color:#999;font-size:13px">${esc(f.sub||'')}</div></div>
+            <div style="display:flex;gap:4px"><button class="icon-btn" onclick="croItemAdd('${f.id}')" title="Inserir ação"><i data-lucide="plus"></i></button><button class="icon-btn" onclick="croFaseEdit('${f.id}')" title="Editar fase"><i data-lucide="pencil"></i></button><button class="icon-btn" onclick="croFaseDel('${f.id}')" title="Excluir fase"><i data-lucide="trash-2"></i></button></div>
+          </div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
+            ${f.itens.map(it=>{const m=TIPO_META[it.tipo]||TIPO_META.acao;return `
+              <div class="cro-row" style="background:${m[2]}">
+                <span class="cro-h" style="color:${m[1]}">${esc(it.hora)}</span>
+                <i data-lucide="${m[0]}" style="width:16px;height:16px;color:${m[1]}"></i>
+                <span style="flex:1;color:#333">${esc(it.texto)}</span>
+                <button class="icon-btn" onclick="croItemEdit('${f.id}','${it.id}')"><i data-lucide="pencil"></i></button>
+                <button class="icon-btn" onclick="croItemDel('${f.id}','${it.id}')"><i data-lucide="trash-2"></i></button>
+              </div>`;}).join('')}
+          </div>
+        </div>`).join('')}`;
+    }
+    window.croFase=function(){ croFaseForm({id:'',fase:'',data:'',dia:'',sub:''}); };
+    window.croFaseEdit=function(id){ const f=ev().cronograma.find(x=>x.id===id); if(f)croFaseForm(f); };
+    function croFaseForm(f){ openModal(f.id?'Editar fase':'Nova fase',`
+      <div class="field"><label>Fase</label><input id="cf-fase" value="${esc(f.fase)}" placeholder="Ex.: FASE 5"/></div>
+      <div class="field"><label>Data</label><input id="cf-data" value="${esc(f.data)}" placeholder="Ex.: 21/07"/></div>
+      <div class="field"><label>Dia</label><input id="cf-dia" value="${esc(f.dia)}" placeholder="Ex.: Terça"/></div>
+      <div class="field"><label>Subtítulo</label><input id="cf-sub" value="${esc(f.sub)}"/></div>
+      <button class="btn btn-primary btn-block" onclick="croFaseSave('${f.id}')">Salvar</button>`); }
+    window.croFaseSave=function(id){ const e=ev(); const o={fase:$('#cf-fase').value.trim(),data:$('#cf-data').value.trim(),dia:$('#cf-dia').value.trim(),sub:$('#cf-sub').value.trim()}; if(!o.fase){toast('Informe a fase.');return;} if(id){Object.assign(e.cronograma.find(x=>x.id===id),o);}else{e.cronograma.push({id:uid(),...o,itens:[]});} saveEv(); closeModal(); VIEWS.realizacao(); };
+    window.croFaseDel=function(id){ if(!confirm('Excluir esta fase e suas ações?'))return; const e=ev(); e.cronograma=e.cronograma.filter(x=>x.id!==id); saveEv(); VIEWS.realizacao(); };
+    window.croItemAdd=function(fid){ croItemForm(fid,{id:'',hora:'',tipo:'acao',texto:''}); };
+    window.croItemEdit=function(fid,id){ const f=ev().cronograma.find(x=>x.id===fid); const it=f&&f.itens.find(x=>x.id===id); if(it)croItemForm(fid,it); };
+    function croItemForm(fid,it){ const tipos=[['montagem','Montagem (azul)'],['acao','Ação (laranja)'],['alerta','Alerta (vermelho)'],['concluido','Concluído (dourado)']]; openModal(it.id?'Editar ação':'Inserir ação',`
+      <div class="field"><label>Horário</label><input id="ci-hora" value="${esc(it.hora)}" placeholder="Ex.: 12h30"/></div>
+      <div class="field"><label>Tipo</label><select id="ci-tipo">${tipos.map(t=>`<option value="${t[0]}" ${it.tipo===t[0]?'selected':''}>${t[1]}</option>`).join('')}</select></div>
+      <div class="field"><label>Ação</label><input id="ci-texto" value="${esc(it.texto)}"/></div>
+      <button class="btn btn-primary btn-block" onclick="croItemSave('${fid}','${it.id}')">Salvar</button>`); }
+    window.croItemSave=function(fid,id){ const f=ev().cronograma.find(x=>x.id===fid); if(!f)return; const o={hora:$('#ci-hora').value.trim(),tipo:$('#ci-tipo').value,texto:$('#ci-texto').value.trim()}; if(!o.texto){toast('Informe a ação.');return;} if(id){Object.assign(f.itens.find(x=>x.id===id),o);}else{f.itens.push({id:uid(),...o});} saveEv(); closeModal(); VIEWS.realizacao(); };
+    window.croItemDel=function(fid,id){ const f=ev().cronograma.find(x=>x.id===fid); if(!f)return; f.itens=f.itens.filter(x=>x.id!==id); saveEv(); VIEWS.realizacao(); };
+    window.croPrint=function(){ const e=ev(); printHTML('Cronograma - '+(e.name||''),`<h2 style="color:#E8620C">Cronograma Geral</h2><div style="color:#666;margin-bottom:12px">3º Risoto Solidário · 17 a 20 de julho de 2026</div>${e.cronograma.map(f=>`<div style="margin-bottom:14px"><div style="font-weight:800;color:#1c1c1c;border-bottom:2px solid #E8620C;padding-bottom:3px">${esc(f.fase)} · ${esc(f.data)} · ${esc(f.dia)} - ${esc(f.sub||'')}</div><table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px">${f.itens.map(it=>`<tr><td style="padding:4px 8px;font-weight:700;color:#E8620C;white-space:nowrap;vertical-align:top">${esc(it.hora)}</td><td style="padding:4px 8px">${esc(it.texto)}</td></tr>`).join('')}</table></div>`).join('')}`); };
+
+    /* ================= CHECKLIST GERAL ================= */
+    const CHK_ST={pendente:['circle','#9AA0A6','pendente'],andamento:['loader','#E0A800','em andamento'],concluido:['check-circle','#2FA84F','concluído']};
+    function chkStats(e){ let done=0,and=0,tot=0; e.checklistGeral.forEach(s=>s.itens.forEach(i=>{tot++; if(i.status==='concluido')done++; else if(i.status==='andamento')and++;})); return {done,and,tot,pct:tot?Math.round(done/tot*100):0}; }
+    function renderChk(e){
+      const st=chkStats(e);
+      return `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:6px">
+        <div><h2 style="margin:0;color:var(--primary-dark)">Checklist Geral</h2>
+        <div style="color:#888;font-size:13px">${e.checklistGeral.length} seções · ${st.tot} itens</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="chkAddSec()"><i data-lucide="plus"></i>Nova seção</button>
+          <button class="btn btn-ghost btn-sm" onclick="chkExcel()"><i data-lucide="file-spreadsheet"></i>Relatório Excel</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-bottom:6px"><span>Progresso global</span><span><b style="color:var(--primary)">${st.done}/${st.tot}</b> (${st.pct}%) · ${st.and} em andamento</span></div>
+        <div style="height:12px;background:#eee;border-radius:6px;overflow:hidden"><div style="height:100%;width:${st.pct}%;background:linear-gradient(90deg,#E8620C,#F7941D)"></div></div>
+      </div>
+      ${e.checklistGeral.map(s=>{const sd=s.itens.filter(i=>i.status==='concluido').length;return `
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-head"><h3 style="font-size:16px">${esc(s.secao)} <span style="color:#999;font-weight:500;font-size:13px">${sd}/${s.itens.length}</span></h3>
+            <div style="display:flex;gap:4px"><button class="icon-btn" onclick="chkAddItem('${s.id}')" title="Nova atividade"><i data-lucide="plus"></i></button><button class="icon-btn" onclick="chkSecEdit('${s.id}')"><i data-lucide="pencil"></i></button><button class="icon-btn" onclick="chkSecDel('${s.id}')"><i data-lucide="trash-2"></i></button></div></div>
+          ${s.itens.map(i=>{const m=CHK_ST[i.status];return `
+            <div class="chk-row">
+              <button class="chk-st" onclick="chkToggle('${s.id}','${i.id}')" title="${m[2]}"><i data-lucide="${m[0]}" style="color:${m[1]};width:18px;height:18px"></i></button>
+              <span style="flex:1;${i.status==='concluido'?'color:#999;text-decoration:line-through':'color:#333'}">${esc(i.texto)}${i.obs?` <span style="color:#B4490A;font-size:12px">· ${esc(i.obs)}</span>`:''}</span>
+              <button class="icon-btn" onclick="chkItemEdit('${s.id}','${i.id}')"><i data-lucide="pencil"></i></button>
+              <button class="icon-btn" onclick="chkItemDel('${s.id}','${i.id}')"><i data-lucide="trash-2"></i></button>
+            </div>`;}).join('')}
+        </div>`;}).join('')}`;
+    }
+    window.chkToggle=function(sid,id){ const s=ev().checklistGeral.find(x=>x.id===sid); const i=s&&s.itens.find(x=>x.id===id); if(!i)return; i.status=i.status==='pendente'?'andamento':i.status==='andamento'?'concluido':'pendente'; saveEv(); VIEWS.realizacao(); };
+    window.chkAddSec=function(){ const n=prompt('Nome da nova seção:'); if(!n)return; ev().checklistGeral.push({id:uid(),secao:n.trim(),itens:[]}); saveEv(); VIEWS.realizacao(); };
+    window.chkSecEdit=function(id){ const s=ev().checklistGeral.find(x=>x.id===id); if(!s)return; const n=prompt('Editar nome da seção:',s.secao); if(n===null)return; s.secao=n.trim(); saveEv(); VIEWS.realizacao(); };
+    window.chkSecDel=function(id){ if(!confirm('Excluir esta seção e seus itens?'))return; const e=ev(); e.checklistGeral=e.checklistGeral.filter(x=>x.id!==id); saveEv(); VIEWS.realizacao(); };
+    window.chkAddItem=function(sid){ chkItemForm(sid,{id:'',texto:'',obs:'',status:'pendente'}); };
+    window.chkItemEdit=function(sid,id){ const s=ev().checklistGeral.find(x=>x.id===sid); const i=s&&s.itens.find(x=>x.id===id); if(i)chkItemForm(sid,i); };
+    function chkItemForm(sid,i){ openModal(i.id?'Editar atividade':'Nova atividade',`<div class="field"><label>Atividade</label><input id="ck-t" value="${esc(i.texto)}"/></div><div class="field"><label>Observação</label><input id="ck-o" value="${esc(i.obs)}"/></div><div class="field"><label>Status</label><select id="ck-s"><option value="pendente" ${i.status==='pendente'?'selected':''}>Pendente</option><option value="andamento" ${i.status==='andamento'?'selected':''}>Em andamento</option><option value="concluido" ${i.status==='concluido'?'selected':''}>Concluído</option></select></div><button class="btn btn-primary btn-block" onclick="chkItemSave('${sid}','${i.id}')">Salvar</button>`); }
+    window.chkItemSave=function(sid,id){ const s=ev().checklistGeral.find(x=>x.id===sid); if(!s)return; const o={texto:$('#ck-t').value.trim(),obs:$('#ck-o').value.trim(),status:$('#ck-s').value}; if(!o.texto){toast('Informe a atividade.');return;} if(id){Object.assign(s.itens.find(x=>x.id===id),o);}else{s.itens.push({id:uid(),...o});} saveEv(); closeModal(); VIEWS.realizacao(); };
+    window.chkItemDel=function(sid,id){ const s=ev().checklistGeral.find(x=>x.id===sid); if(!s)return; s.itens=s.itens.filter(x=>x.id!==id); saveEv(); VIEWS.realizacao(); };
+    window.chkExcel=function(){ const e=ev(); const rows=[]; e.checklistGeral.forEach(s=>s.itens.forEach(i=>rows.push([s.secao,i.texto,i.status==='concluido'?'Concluído':i.status==='andamento'?'Em andamento':'Pendente',i.obs||'']))); exportXLS('checklist-geral-'+(e.name||'evento'),['Seção','Atividade','Status','Observação'],rows); };
+
+    /* ================= DOCUMENTOS ================= */
+    function docIconOf(t){ return t==='XLSX'?'file-spreadsheet':t==='PDF'?'file-text':t==='Imagem'?'image':'file'; }
+    function pickFile(accept,cb){ const inp=document.createElement('input'); inp.type='file'; if(accept)inp.accept=accept; inp.onchange=()=>{ const f=inp.files[0]; if(!f)return; if(f.size>3*1024*1024 && !confirm('Arquivo grande ('+(Math.round(f.size/1024/1024*10)/10)+' MB). Pode não sincronizar na nuvem. Continuar?'))return; const r=new FileReader(); r.onload=()=>cb(f,r.result); r.readAsDataURL(f); }; inp.click(); }
+    function renderDocs(e){
+      return `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:6px">
+        <div><h2 style="margin:0;color:var(--primary-dark)">Biblioteca de Documentos</h2>
+        <div style="color:#888;font-size:13px">Documentos oficiais do 3º Risoto Solidário - Sabores do Cerrado.</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="docPrint()"><i data-lucide="printer"></i>Imprimir lista</button>
+          <button class="btn btn-primary btn-sm" onclick="docAdd()"><i data-lucide="plus"></i>Adicionar documento</button>
+        </div>
+      </div>
+      <div class="doc-grid">
+        ${e.documentos.map(d=>`
+          <div class="card doc-card">
+            <span class="doc-ic"><i data-lucide="${esc(d.icon||docIconOf(d.tipo))}" style="color:var(--primary)"></i></span>
+            <div style="font-weight:700;color:#1c1c1c;margin-top:8px">${esc(d.nome)} <span class="badge b-gray" style="font-size:10px">${esc(d.tipo)}</span></div>
+            <div style="font-size:13px;color:#888;margin:4px 0 12px;min-height:34px">${esc(d.desc||'')}</div>
+            <div style="display:flex;gap:6px">
+              ${d.dataUrl?`<a class="btn btn-primary btn-sm" style="flex:1;justify-content:center" href="${d.dataUrl}" download="${esc(d.filename||d.nome)}"><i data-lucide="download"></i>Baixar</a>`:`<button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="docAttach('${d.id}')"><i data-lucide="paperclip"></i>Anexar arquivo</button>`}
+              <button class="btn btn-ghost btn-sm" onclick="docDel('${d.id}')"><i data-lucide="trash-2"></i></button>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div class="card" style="margin-top:18px">
+        <div class="card-head"><div style="display:flex;align-items:center;gap:8px"><i data-lucide="folder-lock" style="color:var(--primary)"></i><h3 style="margin:0">Autorizações</h3><span style="color:#999;font-size:13px">${e.autorizacoes.length} arquivo(s)</span></div>
+          <button class="btn btn-ghost btn-sm" onclick="autPrint()"><i data-lucide="printer"></i>Imprimir</button></div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
+          <div class="field" style="margin:0"><label>Nome da autorização</label><input id="aut-nome" placeholder="Ex.: Alvará da Prefeitura, AVCB, Licença Sanitária..."/></div>
+          <button class="btn btn-primary" onclick="autAdd()"><i data-lucide="upload"></i>Inserir arquivo</button>
+        </div>
+        <div style="margin-top:12px">
+          ${e.autorizacoes.length?e.autorizacoes.map(a=>`<div class="op-row">
+            <div><div class="nm">${esc(a.nome)}</div><div class="fn">${esc(a.filename||'')}${a.size?' · '+Math.round(a.size/1024)+' KB':''}</div></div>
+            <div style="display:flex;gap:2px">${a.dataUrl?`<a class="icon-btn" href="${a.dataUrl}" download="${esc(a.filename||a.nome)}" title="Baixar"><i data-lucide="download"></i></a>`:''}<button class="icon-btn" onclick="autDel('${a.id}')" title="Excluir"><i data-lucide="trash-2"></i></button></div>
+          </div>`).join(''):'<div style="color:#999;font-size:13px;padding:8px 0">Nenhuma autorização anexada. Informe o nome e clique em Inserir arquivo (PDF, Word ou imagem).</div>'}
+        </div>
+      </div>`;
+    }
+    window.docAdd=function(){ openModal('Adicionar documento',`<div class="field"><label>Nome</label><input id="dc-n"/></div><div class="field"><label>Tipo</label><select id="dc-t"><option>DOCX</option><option>XLSX</option><option>PDF</option><option>Imagem</option><option>Outro</option></select></div><div class="field"><label>Descrição</label><input id="dc-d"/></div><button class="btn btn-primary btn-block" onclick="docAddSave()">Adicionar</button>`); };
+    window.docAddSave=function(){ const n=$('#dc-n').value.trim(); if(!n){toast('Informe o nome.');return;} ev().documentos.push({id:uid(),nome:n,tipo:$('#dc-t').value,desc:$('#dc-d').value.trim(),icon:'',dataUrl:'',filename:''}); saveEv(); closeModal(); VIEWS.realizacao(); toast('Documento adicionado.'); };
+    window.docAttach=function(id){ pickFile('.pdf,.doc,.docx,.xls,.xlsx,image/*',(f,url)=>{ const d=ev().documentos.find(x=>x.id===id); if(!d)return; d.dataUrl=url; d.filename=f.name; d.size=f.size; try{saveEv();}catch(err){d.dataUrl='';d.filename='';toast('Arquivo grande demais para salvar localmente.');return;} toast('Arquivo anexado.'); VIEWS.realizacao(); }); };
+    window.docDel=function(id){ if(!confirm('Excluir este documento?'))return; const e=ev(); e.documentos=e.documentos.filter(x=>x.id!==id); saveEv(); VIEWS.realizacao(); };
+    window.docPrint=function(){ const e=ev(); printHTML('Documentos',`<h2 style="color:#E8620C">Biblioteca de Documentos</h2><ul style="font-size:13px;line-height:1.7">${e.documentos.map(d=>`<li><b>${esc(d.nome)}</b> (${esc(d.tipo)}) - ${esc(d.desc||'')}</li>`).join('')}</ul>`); };
+    window.autAdd=function(){ const nome=$('#aut-nome').value.trim(); if(!nome){toast('Informe o nome da autorização.');return;} pickFile('.pdf,.doc,.docx,image/*',(f,url)=>{ ev().autorizacoes.push({id:uid(),nome:nome,filename:f.name,size:f.size,dataUrl:url,tipo:f.type}); try{saveEv();}catch(err){ev().autorizacoes.pop();toast('Arquivo grande demais.');return;} toast('Autorização anexada.'); VIEWS.realizacao(); }); };
+    window.autDel=function(id){ if(!confirm('Excluir esta autorização?'))return; const e=ev(); e.autorizacoes=e.autorizacoes.filter(x=>x.id!==id); saveEv(); VIEWS.realizacao(); };
+    window.autPrint=function(){ const e=ev(); printHTML('Autorizações',`<h2 style="color:#E8620C">Autorizações - Documentos anexados</h2><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#E8620C;color:#fff"><th style="padding:6px;text-align:left">Autorização</th><th style="padding:6px;text-align:left">Arquivo</th></tr>${e.autorizacoes.map(a=>`<tr style="border-bottom:1px solid #ddd"><td style="padding:6px">${esc(a.nome)}</td><td style="padding:6px">${esc(a.filename||'-')}</td></tr>`).join('')}</table>`); };
   })();
   </script>
   <script id="app-seed">
